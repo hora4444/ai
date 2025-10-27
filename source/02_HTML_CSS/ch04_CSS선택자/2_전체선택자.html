@@ -1,0 +1,57 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>/*위부터 아래로 차례차례 적용*/
+        * { /*전체선택자=페이지 초기화 용도 : 전체 페이지의 디자인을 초기화*/
+            margin: 0;
+            padding:0;
+            color:saddlebrown;
+        }
+    header, nav, section, footer{
+        border : 1px solid gray;
+        width:500px;
+        margin: 2px auto; /*좌우여백을 정확하게 나눔*/
+    }
+    /*ul li 메뉴를 수평으로*/
+    nav ul{overflow:hidden;}/*수평으로 하고픈 태그의 부모단*/
+    nav ul li{
+        float:left;
+        list-style:none;
+        width: 125px;
+        text-align:center;
+/*        margin: 1px 25px*/
+    }
+    section{
+        clear:both; /* float속성을 clear. overflow:hidden을 했으면 생략 가능 */
+    }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>00 주식회사</h1>
+    </header>
+    <nav>
+        <ul>
+            <li>회사소개</li><li>서비스소개</li><li>고객센터</li><li>공지사항</li>
+        </ul>
+    </nav>
+    <section>
+        <p>
+            CSS선택자란,
+            선택자란, 웹페이지의 특정 부분을 선택하여, 태그의 속성을 변경하는 목적 이용
+        </p>
+        <p>
+            인사할까 것 특히 모양을 확대하지 모양 바로 땅의 3개월 하니. 많이 기한부를, 수 생각한 일어나다 없기 보아서 보지 얘기로 이제 있다.
+            실과 독소의 36세 속도다 다룬 그리고 씨, 번쩍 기분의, 근처다 싶는다. 
+            이때의 있습니다 아니어 일을 듯 아버지로 책상이라든가 그만큼 숨기다. 
+            것 무턱대고 하자 쏠리다 수행하다. 형의 만화가 정책을 그쪽이 듯하라. 경우의 것, 관이지만 이의 버틴 번들거리는 깨어나다 이유를 머로 한 본다.
+        </p>
+    </section>
+    <footer>
+        <p>서울시 xx구 00동 ㅁㅁ빌딩 xF</p>
+    </footer>
+</body>
+</html>

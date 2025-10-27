@@ -1,0 +1,62 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+        table{
+            border-collapse: collapse;
+        }
+        tr{
+            border-top : 1px solid green;
+            border-bottom :1pt solid green;
+        }
+    </style>
+    <script>
+        function chk() {
+            // submit이 안 일어난 조건 : 작성자가 "" 일 때
+            //if (!frm.name.value.trim()) { // trim()은 spacebar를 없애주는 함수(파이썬은 strip())
+            // 작성자명에 space가 아닌 한글자 이상 submit
+            if (frm.name.value.trim().length < 2) {  //작성자명은 2글자 이상 submit
+                alert('작성자명은 2글자이상 필수입력 사항입니다.');
+                frm.name.focus();
+                return false; // submit 안 일어나도록
+            }
+            return true; //submit 일어나도록
+        }
+    </script>
+</head>
+<body>
+    <form action="" name="" onsubmit="return chk()">
+        <table>
+            <caption><h3>게시판</h3></caption>
+
+            <tr>
+                <td>제목</td>
+                <td><input type="text" name="title" size="30" /></td>
+            </tr>
+
+            <tr>
+                <td>작성자</td>
+                <td><input type="text" name="name" size="30" /></td>
+            </tr>
+
+            <tr>
+                <td>본문</td>
+                <td><textarea name="content" cols="33" rows="5"></textarea></td>
+            </tr>
+            <tr>
+                <td>첨부파일</td>
+                <td><input type="file" name="filename" /></td>
+            </tr>
+            <tr>
+                <th colspan="2">
+                    <input type="submit" value="글쓰기" />
+                    <input type="reset" value="초기화" />
+                </th>
+            </tr>
+        </table>
+    </form>
+</body>
+</html>
