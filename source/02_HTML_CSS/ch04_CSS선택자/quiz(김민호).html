@@ -1,0 +1,133 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+            /* * * * * 전체적인 레이아웃 잡기 * * * * * * * */
+            #header, #content, #footer {
+                width: 1000px;
+                margin: 0 auto;
+                overflow: hidden;
+            }
+
+                #header > div, #content > div, #footer > div {
+                    float: left;
+                    border: 1px solid gray;
+                    background-color: lightgray;
+                }
+
+            .left, .right {
+                width: 150px;
+                height: 150px;
+            }
+
+            .center {
+                width: 692px;
+                height: 150px;
+            }
+
+            #content > div {
+                height: 300px;
+            }
+            /* * * * * border 뒹굴리기  * * * * * * * */
+           #header .left, #footer .right{
+               border-radius : 20px 0 20px 0
+           }
+           #header .right, #footer .left{
+               border-radius : 0 20px 0 20px
+           }
+           #header .center{
+               border-radius : 0 0 20px 20px
+           }
+           #footer .center {
+               border-radius: 20px 20px 0 0
+           }
+           #content .left{
+                border-radius: 0 20px 20px 0
+           }
+           #content .right{
+               border-radius: 20px 0 0 20px
+           }
+           #content .center {
+               border-radius: 20px 20px 20px 20px
+           }
+            /* * * * * #content .right  * * * * * * * */
+            #content .right ol li:nth-last-child(-n+3){
+                color:red
+            }
+
+            #content .cneter ul{
+                overflow:hidden; margin:30px 0;
+            }
+
+            #content .center ul li{
+                float : left;
+                width:33%;
+                list-style: none;
+                text-align:center;
+                font-weight:bold;
+                font-size:2em;
+            }
+
+            #content .center a{color:black; text-decoration:none;}
+            #content .center h2{text-align:center;}
+            #content .center p{padding:20px}
+
+            #academy h2{
+                font-weight:bold;
+                font-size:2em;
+                padding: 80px 0 0 0
+            }
+
+    </style>
+</head>
+<body>
+    <div id="header">
+        <div class="left"></div>
+        <div class="center"></div>
+        <div class="right"></div>
+    </div>
+    <div id="content">
+        <div class="left"></div>
+        <div class="center">
+            <div id="nav">
+                <ul>
+                    <li><a href="#">menu1</a></li>
+                    <li><a href="#">menu2</a></li>
+                    <li><a href="#">menu3</a></li>
+                </ul>
+            </div>
+            <div id="academy">
+                <h2>AI 개발자 양성과정</h2>
+                <p>
+                    파이썬, 웹표준, js, 웹크롤링, DBMS, 딥러닝,
+                    이미지 딥러닝, 자연어처리, 생성형 ai, 머신러닝, 프로젝트, flask, 장고
+                </p>
+            </div>
+        </div>
+        <div class="right">
+            <ol>
+                <li>태그</li>
+                <li>전체(*)</li>
+                <li>#id, .class</li>
+                <li>속성</li>
+                <li>후손, 자손(>)</li>
+                <li>동위</li>
+                <li>반응</li>
+                <li>상태</li>
+                <li>구조</li>
+                <li>문자</li>
+                <li>링크</li>
+                <li>부정</li>
+            </ol>
+        </div>
+    </div>
+    <div id="footer">
+        <div class="left"></div>
+        <div class="center"></div>
+        <div class="right"></div>
+    </div>
+</body>
+</html>

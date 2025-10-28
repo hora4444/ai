@@ -1,0 +1,80 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+        div#wrap{
+            width:350px; margin:0 auto;
+        }
+        header{
+            color:orange;
+            text-align:center;
+        }
+        #section{
+            border-top : 1px solid gray;
+            border-bottom :1px solid gray;
+        }
+        #section h4[title^='남자']{/*타이틀이 남자로 시작하는 경우*/
+            background:url('ch04/man.png') no-repeat;
+            padding:0 0 0 30px; /*안여백 위우하좌*/
+
+        }
+        #section h4[title^='여자'] { /*타이틀이 남자로 시작하는 경우*/
+            background: url('ch04/woman.png') no-repeat;
+            padding-left : 30px;
+        }
+        #section p{ 
+            text-align:center;
+        }
+        #section a{
+            color:navy;
+            text-decoration:none;/*밑줄 없앰*/
+        }
+        #section a[href$='docx'], #section a[href$='doc']{
+            background:url(ch04/word.png) right no-repeat;
+            padding-right:30px;
+        }
+        #section a[href$='xlsx'], #section a[href$='xls'] {
+            background: url(ch04/excel.png) right no-repeat;
+            padding-right: 30px;
+        }
+        footer{
+            text-align:center;
+            color:#999999;
+        }
+    </style>
+</head>
+<body>
+    <div id="wrap">
+        <header>
+            <h1>객실안내</h1>
+        </header>
+        <div id="section">
+            <h4 title="남자도미토리">남자도미토리</h4>
+            <ul>
+                <li>공동취사실 및 욕실 사용</li>
+                <li>1인 20,000(비수기), 25,000(성수기)</li>
+            </ul>
+
+            <h4 title="여자도미토리">여자도미토리</h4>
+            <ul>
+                <li>취사 기구 완비 실내 욕실 사용</li>
+                <li>1인 30,000(비수기), 40,000(성수기)</li>
+            </ul>
+            <p>
+                <a href="ch04/intro.docx">유의사항 다운로드</a>
+            </p>
+
+            <p>
+                <a href="ch04/intro.xlsx">객실자료 다운로드</a>
+            </p>
+
+        </div>
+        <footer>
+            <p>서울시 XX구 OO로</p>
+        </footer>
+    </div>
+</body>
+</html>

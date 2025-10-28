@@ -1,0 +1,58 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <style>
+        #wrap{
+            width:500px; margin:0 auto;
+            border:1px solid gray;
+            padding:10px;
+            text-align:justify; /*양쪽정렬*/
+        }
+        #wrap p:nth-child(2n){background-color:cyan;}
+        /* css 단위 : px, em, %, pt */
+        #wrap p:nth-child(1){font-size:.8em;/* 원래 사이즈의 0.8배(pxtoem) */}
+        #wrap p:nth-child(2){font-size: 100%;/* 문자사이즈(16px)의 100% 
+                                 width, height, padding, margin, .. 등의 경우: 부모의 몇 % */}
+        #wrap p:nth-child(3){font-size:32px;}
+        #wrap p:nth-child(4){
+            font-size: 24pt  /*1pt가 몇 px(pttopx)*/
+        }
+        #wrap p > span{
+            font-size: .5em;
+            display:block; /*block형 태그로 전환*/
+            color:gray;
+        }
+    </style>
+</head>
+<body>
+    <div id="wrap">
+        <p>
+            모든 국민은 인간다운 생활을 할 권리를 가진다.
+            대통령이 임시회의 집회를 요구할 때에는 기간과 집회요구의 이유를 명시하여야 한다.
+            헌법재판소의 조직과 운영 기타 필요한 사항은 법률로 정한다.
+            <span>입력 2025.10.28. 오후 5:22 </span>
+        </p>
+        <p>
+            모든 국민은 인간다운 생활을 할 권리를 가진다.
+            대통령이 임시회의 집회를 요구할 때에는 기간과 집회요구의 이유를 명시하여야 한다.
+            헌법재판소의 조직과 운영 기타 필요한 사항은 법률로 정한다.
+            <span>입력 2025.10.28. 오후 5:22 </span>
+        </p>
+        <p>
+            모든 국민은 인간다운 생활을 할 권리를 가진다.
+            대통령이 임시회의 집회를 요구할 때에는 기간과 집회요구의 이유를 명시하여야 한다.
+            헌법재판소의 조직과 운영 기타 필요한 사항은 법률로 정한다.
+            <span>입력 2025.10.28. 오후 5:22 </span>
+        </p>
+        <p>
+            모든 국민은 인간다운 생활을 할 권리를 가진다.
+            대통령이 임시회의 집회를 요구할 때에는 기간과 집회요구의 이유를 명시하여야 한다.
+            헌법재판소의 조직과 운영 기타 필요한 사항은 법률로 정한다.
+            <span>입력 2025.10.28. 오후 5:22 </span>
+        </p>
+    </div>
+</body>
+</html>
