@@ -1,0 +1,19 @@
+css 속성들
+    css3단위
+ 	n em : 기본 폰트 사이즈의 n배
+	% : 기본 폰트 사이즈의 퍼센트
+	px, pt 폰트 사이즈   (2px = 1.5pt)
+    url()
+	background-img나 font이름을 지정할 때 경로로 사용
+    display
+	화면에 어떻게 보이즌지 설정
+	block , inline, inline-block 등
+    visibility
+	visibility:hidden : 공간은 확보되나 안보임
+	display:none: 공간도 확보되지 않음
+    opacity
+	투명도 조절하는 속성
+    margin 및 padding
+	
+    box-sizing
+	box-
