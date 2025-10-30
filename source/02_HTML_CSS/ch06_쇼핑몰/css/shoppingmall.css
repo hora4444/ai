@@ -9,6 +9,14 @@
     font-family: 'Merriweather-Light';
     src: url('../font/Merriweather-Light.ttf'); /* css파일 기준으로 경로 설정 */
 }
+
+.pacifico-regular {
+    font-family: "Pacifico", cursive;
+    font-weight: 400;
+    font-style: normal;
+}
+
+
 *{
     margin:0; padding: 0;
     font-family: 'Merriweather-Regular';
@@ -16,4 +24,129 @@
 a{
     text-decoration: none; color: black; display: block;
 }
+/* h1{font-family: "Pacifico";} */
 li{list-style: none;}
+
+/* *************header************* */
+
+/* *************header .gnb************* */
+header .gnb{
+    background-color: black;
+}
+
+header .gnb a{
+    color: white;
+}
+header .gnb ul{
+    width: 1000px; margin : 0 auto;
+    overflow: hidden;
+    height: 30px; line-height: 30px;
+}
+header .gnb ul li{
+    float: left;
+    width: 90px; margin: 0 5px;
+    text-align: center;
+}
+/* *************header .logo************* */
+header .logo{
+    font-family: "Pacifico", cursive;
+    width: 200px; margin: 30px auto;
+    border: 1px solid gray;
+    text-align: center;
+    /* line-height: 100px; */
+    padding: 30px 20px;
+    font-size: 2em;
+}
+
+/* ************* #header .hitmenu ************* */
+header .hitmenu ul{
+    width: 1000px; margin: 0 auto 5px; /* 0 auto 5px auto*/
+    overflow: hidden;
+}
+header .hitmenu ul li{
+    float: right;
+    border: 1px solid gray;
+}
+
+header .hitmenu ul li a{
+    padding: 15px 30px;
+    text-align: center;
+}
+
+header .hitmenu ul li:last-child{
+    border-radius: 15px 0 0 15px;
+}
+header .hitmenu ul li:first-child{
+    border-radius: 0 15px 15px 0;
+}
+/* ************* #header .lnb ************* */
+header .lnb{
+    border-top: 1px dashed gray;  
+    border-bottom: 1px dashed gray;  
+}
+header .lnb ul{
+    width:1000px; margin: 0 auto; 
+    overflow:hidden;
+    line-height: 30px;
+}
+
+header .lnb ul li{
+    float: left;
+    width: 115px; margin: 0 5px;
+    text-align: center;
+}
+/* ************* #content ************* */
+#content{
+    width:1000px; margin: 3px auto;
+}
+
+/* ************* #content .section1 ************* */
+#content .section1{
+    overflow: hidden;
+}
+
+#content .section1 > div{
+    float: left;
+    border: 1px solid gray;
+    box-sizing: border-box;
+    text-align: center;
+    line-height: 400px;
+}
+.slide_banner{width: 700px;}
+.side_banner{width: 300px;}
+/* ************* #content .section2 ************* */
+.section2{
+    overflow: hidden;
+}
+
+.section2 > div{
+    margin: 5px 0;
+    border: 1px solid gray;
+}
+
+.section2 ul{overflow: hidden;}
+.section2 ul li{
+    float: left;
+    border: 1px solid gray; box-sizing: border-box;
+    width: 24%; margin-left: 0.8%;
+    line-height: 400px; text-align: center;
+}
+
+/* ************** #footer ***************** */
+footer{
+    width:1000px; margin:0 auto;
+    overflow: hidden;
+}
+footer div:nth-child(-n+3){
+    float: left;
+    width: 33.3%;
+    border: 1px solid gray;
+    box-sizing: border-box;
+    height: 100px;
+}
+footer div:last-child{
+    clear: both; /* 앞 태그에서 전달받은 float속성을 제거 */
+    color: white;
+    background-color: black;
+    text-align: center;
+}
