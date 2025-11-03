@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+    <title></title>
+    <script>
+        var cnt = 0;
+        var numcnt = 0; //제대로된 숫자 입력횟수
+        var nancnt = 0; //제대로된 숫자를 입력하지 않은 휫수(0~100)사이의 숫자
+        var sumscore = 0;
+    
+        //반복문(조건 : confirm창에서 확인을 클릭)
+        while(confirm("누적할래?")){
+            // prompt를 통해 점수 입력받고 cnt++
+            score = prompt("누적할 점수?");
+            cnt++;
+
+            //숫자로 형변환
+            chkscore = parseFloat(score)
+
+            //형변환된 숫자가 NaN인지 여부
+            if(isNaN(chkscore)){
+                // NaN이면 nancnt++
+                nancnt ++;
+
+            // NaN이 아닐경우
+            }else if((chkscore >= 0)  && (chkscore <= 100)){
+                sumscore += chkscore;
+                numcnt ++;
+            }else{
+                nancnt ++;
+            }
+        }
+        let list='';
+        list += "<p>"
+        list += cnt;
+        list += "번 입력</p>"
+        list += "<p>누적점수:"
+        list += sumscore;
+        list += "</p>"
+        list += "<p>점수를 제대로 입력한 휫수:"
+        list += numcnt;
+        list += "</p>"
+        list += "<p>점수를 잘못 입력한 횟수:"
+        list += nancnt;
+        list += "</p>"
+
+        document.writeln(list);
+    </script>
+</head>
+<body>
+    
+</body>
+</html>

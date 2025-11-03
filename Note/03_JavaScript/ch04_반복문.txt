@@ -1,0 +1,12 @@
+반복문
+    (do)while문 조건이 참일 때 계속 실행. do를 쓴다면 최초 한번은 무조건 실행
+	[do{
+		처음 실행할 식
+	}]while(조건식){참일댸 수행할 명령문}
+    for문
+	for(초기값; 반복할 조건; 증감식){반복할 명령문}
+	for(var idx in array){}
+	for(var data of array){}
+    for-each문
+	배열.forEach(function(data,index){
+		첫번째 인덱스부터 끝 인덱스까지 반복할 명령문들;}
