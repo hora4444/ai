@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+    <title></title>
+    <script>
+        let i= 10;
+        i=20;
+        document.writeln('i=' + i);
+        // functionVar(30); // 익명함수는 변수가 정의되기전에 사용이 불가능한 것과 같이 정의되기 전엔 사용할 수 없다.
+        let functionVar = function(a, b){ //익명함수
+            alert('함수표현식 a=' + a);
+        };
+        functionVar(20, 10);
+        // ECMAscript 6 문법의 화살표함수 표기법
+        functionVar=(a,b) =>{
+            alert(`화살표함수 a = ${a}, b = ${b}`);
+        };
+        functionVar(10, 20); //화살표 함수 호출
+    </script>
+</head>
+<body>
+    
+</body>
+</html>

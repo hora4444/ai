@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+    <title></title>
+    <style>
+        body{
+            background-size: 100%;
+            font-size: 1.5em;
+        }
+    </style>
+    <script>
+        let sec = 0; //몇 초 지났는지 저장 변수
+
+        //img01.png(빨간글씨) img02.png(노란글씨) img03.png(하얀글씨)
+        let img = ['url(ch05_img/img03.png)','url(ch05_img/img01.png)','url(ch05_img/img02.png)'];
+        let color = ['white','red','yellow'];
+        
+        document.writeln(new Date().toLocaleString());
+        document.body.style.backgroundImage = img[sec%img.length];
+        //글자색 바꾸기
+        document.body.style.color = color[sec%img.length];
+
+        //타이머 구동 : sec증가, 백그라운드 이미지수정, 글자색 수정, 시간과 몇 초 지났는지 출력
+        var id = setInterval(() => {
+            sec++
+            // document.body.innerHTML = 로 쓰면 덮어쓰기 됨
+            document.body.innerHTML = new Date().toLocaleString() + '<p>' + sec + '초 지남</p>'
+            document.body.style.color = color[sec%img.length];
+            document.body.style.backgroundImage = img[sec%img.length];
+        },1000);
+        
+        setTimeout(()=>clearInterval(id), 10000);
+    </script>
+</head>
+<body>
+    
+</body>
+</html>
