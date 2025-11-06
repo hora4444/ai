@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+    <title></title>
+    <style>
+        
+    </style>
+    <script>
+        window.onload=()=>{
+            var header = document.getElementsByClassName('header');
+            for(var idx in header){
+                header[idx].onclick = function(){
+                    // this : 이벤트가 발생된 엘리먼트
+                    this.innerHTML="click했네";
+                    this.style.color='red'
+                    this.style.border = "1px solid orange"
+                }
+            }
+        };
+    </script>
+</head>
+<body>
+    <h1 class="header">Click1</h1>
+    <h1 class="header">Click2</h1>
+    <h1 class="header">Click3</h1>
+    <h1 class="header">Click4</h1>
+    <h1 class="header">Click5</h1>
+</body>
+</html>
