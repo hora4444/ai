@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+    <title></title>
+    <script src="https://code.jquery.com/jquery-3.7.1.js"></script>
+    <script>
+        $(function(){
+            // html() : 해당 선택자에 html코드를 삽입, 가져오기
+            // text() : 해당 선택자에 text를 삽입, 가져오기
+            // val() : 해당 선택자 inpyut box에 value를 할당, 가져오기
+            $('#msg').html('<h1>Hello, jQuery</h1>');
+            $('input[name=msg]').val('Hello, js');
+            $('button').click(function(){
+                //msg내용과 input상자 내용을 alert
+                let msg = $('#msg').text();
+                let inputbox = $('.msg').val();
+                alert(msg + '\n' + inputbox);
+            });
+        });
+    </script>
+</head>
+<body>
+    <p id="msg"></p>
+    <p>메세지 : <input type="text" name="msg" class="msg"></p>
+    <button>msg 경고창(msg를 출력)</button>
+</body>
+</html>

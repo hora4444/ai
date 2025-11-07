@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+    <title></title>
+    <style>
+        
+    </style>
+    <script>
+        // onload : 이벤트 속성변수명
+        // load : 이벤트 명
+        // 이벤트 속성벼수에 handler 함수를 할당 - 기본 이벤트모델
+        // addEventListener(이벤트명, handler함수) - 표준 이벤트모델(this사용 시 화살표함수 불가)
+        window.onload = () =>{
+            let btnA = document.getElementById('btnA');
+            let btnB = document.getElementById('btnB');
+            let countA = document.querySelector('#countA');
+            let countB = document.querySelector('#countB');
+
+            // 기본 이벤트모델 
+            // btnA.onclick = () =>{
+            //     countA.innerHTML = parseInt(countA.innerHTML) + 1;
+            //     // btnB의 Click 이벤트 강제 발생
+            //     btnB.onclick();
+            // };
+            // btnB.onclick = () => countB.innerHTML = parseInt(countB.innerHTML) + 1;
+
+            //표준 이벤트모델
+            btnA.addEventListener('click',()=>{
+                countA.innerHTML = parseInt(countA.innerHTML)+1;
+                btnB.click(); // btnB의 click이벤트 강제 발생
+            });
+            btnB.addEventListener('click',()=>{
+                countB.innerHTML = parseInt(countB.innerHTML)+1;
+            });
+
+            
+        };
+    </script>
+</head>
+<body>
+    <button id="btnA">Button A</button>
+    <button id="btnB">Button B</button>
+    <h1>Button A 클릭 횟수 - <span id="countA">0</span></h1>
+    <h1>Button B 클릭 횟수 - <span id="countB">0</span></h1>
+</body>
+</html>

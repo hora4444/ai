@@ -1,0 +1,18 @@
+이벤트-자바스크립트에서 DOM을 통해 동적인 화면처리를 위해 처리하는 내용
+    ex) onclick, onmouseover,onmouseout등
+
+    인라인 이벤트 모델 - body의 태그 내에 선언
+	<body>
+		<h1 onclick="~"> ...
+
+    기본 이벤트 모델 - script 내에 선언
+	<script>
+		window.onload = () => { //창 실행시
+			.....
+			if (변수명 == 'onclick'){ //변수를 클릭했을 때
+			.......	
+		}
+
+    표준 이벤트 모델 - script 내에 선언, 이벤트 모델 자체에 addEventListener 이용해 함수사용
+	....
+		변수명.addEventListener(

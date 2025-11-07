@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
+    <title></title>
+    <style>
+        h1{
+            cursor: pointer;
+            user-select: none; /* text의 불록 선택 불가*/
+        }
+        span:nth-child(1){color: red;}
+        span:nth-child(2){color: orange;}
+        span:nth-child(3){color: yellow;}
+        span:nth-child(4){color: green;}
+        span:nth-child(5){color: blue;}
+        span:nth-child(6){color: navy;}
+        span:nth-child(7){color: purple;}
+    </style>
+    <script>
+        let cnt=0; //클릭 횟수 저장
+        window.onload =() =>{
+            // 기본 이벤트 모델
+            // document.getElementsByTagName('h1')[0].onclick = function(){
+            //     this.innerHTML += "<span>♥</span>";
+            //     if(++cnt >= 7){ //click이벤트는 7만 가능하도록(7번째 click이벤트시 이벤트 제거)
+            //         this.onclick=null;
+            //     }
+            // };
+
+            //표준 이벤트 모델
+            let handler = function(){
+                this.innerHTML+= "<span>♡</span>";
+                if(++cnt >= 7){
+                    this.removeEventListener('click',handler);
+                }
+            }
+            document.getElementsByTagName('h1')[0].addEventListener('click',handler);
+        };
+    </script>
+</head>
+<body>
+    <h1>좋아요</h1>
+</body>
+</html>
