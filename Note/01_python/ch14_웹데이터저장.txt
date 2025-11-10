@@ -1,0 +1,18 @@
+웹 데이터수집 -> 전처리 -> 분석 -> DL/ML
+# 방법1 
+import requests
+url = 'http://~?'
+params = {'q':'비트코인','p':1}
+headers = {'user-agent':'~'}
+response = requests.get(url, params=params, headers=headers)
+
+# 방법2
+from urllib.request import urlopen, Request
+request = Request(url, header = header)
+response = unlopen(request)
+
+#soup 객체
+soup = BeatifulSoup(response.text 또는 response, "html.parser')
+
+#엘리멘트 추출하기
+select('선택자') / select_one('선택자')
