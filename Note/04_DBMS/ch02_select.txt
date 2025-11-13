@@ -1,0 +1,2 @@
+select문 : 조회
+	select * from tab : 현 계정이 가지고 있는 테이블 정보 
