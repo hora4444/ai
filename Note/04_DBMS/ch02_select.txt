@@ -1,2 +1,32 @@
 select문 : 조회
 	select * from tab : 현 계정이 가지고 있는 테이블 정보 
+
+alias: 해당 column에 대한 다른 이름 부여 (필드명 AS "alias", 
+				    또는 필드명 "alias" -- alias에 space가 들어간 경우
+				    또는 필드명 alias)
+DISTINCT: 중복 행 제거 옵션
+
+WHERE : 조회되는 행을 제한하기 위한 조건 추가 ,FROM 뒤에 작성
+	비교연산자: 같다(=), 다르다(<>, ^=, !=) 외엔 다른 언어와 같은 형태
+	논리연산자: AND OR NOT
+	연결연산자 : ||  (※ 주의  연결연산자는 우선순위가 매우 높다)
+
+condition : column, 표현식, 상수 및 비교연산자
+
+ORDER BY:정렬을 위한 옵션 (ASC :오름차순이며 default, DECS 내림차순)
+
+TO_CHAR(필드명,문자열형태) : 필드명의 값을 문자열으로 변환
+
+TO_DATE(날짜, 날짜열형태) : 특정 날짜형 문자를 날짜 데이터로 변환
+
+SQL연산자:
+	BETWEEN a AND b : a부터 b (a,b값 포함. a가 작은 값) 
+
+	IN(list) : list의 값 중 어느 하나와 일치한다
+
+	LIKE pattern :
+		% : 문자가 없거나, 하나 이상의 문자가 어떤 값이 와도 상관없다. EX. 'L%' : L~
+		_ : 하나의 문자가 어떤 값이 와도 상관없다 EX.'_M%'  □M~
+
+	IS NULL                : null값을 가졌다
+

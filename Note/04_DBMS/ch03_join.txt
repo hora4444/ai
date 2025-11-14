@@ -1,0 +1,17 @@
+join : 2개 이상의 테이블을 연결
+
+    Cross Join : 특별한 키워드 없이 from절에 두 개 이상의 테이블을 기술
+	- 조건을 쓴 테이블의 데이터에 조건을 쓰지 않는 데이터 전체를 붙여 값이 불어날 수 있다
+
+    Equi Join : 조인 대상이 되는 두 테이블에서 공통적으로 존재하는 컬럼의 값이 일치되는 행을 결과로 생성
+	ex.  SELECT * FROM emp, dept WHERE emp.deptno=dept.deptno;
+
+    Non-Equi Join : 조인 조건에 특정 범위 내에 있는지를 조사하기 위해서 WHERE 절에 조인 조건을 = 연산자 이외의 비교 연산자를 사용
+	ex. SELECT * FROM emp, salgrade;
+ 
+    Self Join : 하나의 테이블 내에서 조인을 하는 경우
+	ex. SELECT SELECT W.ENAME, M.ENAME FROM EMP W, EMP M WHERE W.MGR = M.EMPNO;
+
+    Outer Join : 조인 조건에 만족하지 못하였더라도 해당 로우를 나타내고 싶을 때 
+	(위의 예:[상사출력]에서 상사가 없는 데이터는 출력하지 않기에 만약 상사가 없는 데이터도 출력하고 싶은 경우)
+	ex. SELECT SELECT W.ENAME, M.ENAME FROM EMP W, EMP M WHERE W.MGR = M.EMPNO(+);
