@@ -1,0 +1,299 @@
+-- [IV] DDL, DCL, DML
+/*SQL
+(1) DCL : 
+    사용자 계정 생성 CREATE USER, 권한부여 GRANT
+    권한박탈        REVOKE,      사용자계정삭제 DROP USER
+    트랜잭션 명령어(ROLLBACK, COMMIT)
+(2) DDL :
+    테이블생성 CREATE TABLE, 테이블 구조 변경 ALTER TABLE, 테이블 삭제 DROP TABLE
+(3) DML : CRUD
+    입력 INSERT, 검색 READ, 수정 UPDATE, 삭제 DELETE - DML은 취소 가능 */
+
+-- ★DDL★
+
+-- 1. 테이블 생성(CREATE TABLE 테이블명.....) : 테이블의 구조를 정의
+    --ORACLE 타입 : NUMBER(38이하의 자릿수), DATE, VARCHAR2(바이트수 최대 4000바이트), CLOB
+CREATE TABLE BOOK(
+    BOOKID NUMBER(4),       -- BOOKID필드의 타입은 숫자 4자리
+    BOOKNAME VARCHAR2(20),  -- BOOKNAME필드의 타입은 문자 20바이트(한글1자 = 3바이트)
+    PUBLISHER VARCHAR2(20),
+    REATE DATE,             -- RDATE필드의 타입은 DATE형(날짜+시간)
+    PRICE NUMBER(9,2),       -- PRICE필드의 타입은 숫자 전체 8자리 중 소숫점 2자리
+    PRIMARY KEY(BOOKID)     -- 제약조건 : BOOKID를 주키(PRIMARY KEY) 필드로
+);
+
+SELECT * FROM BOOK;
+DESC BOOK;
+DROP TABLE BOOK; -- 2. 테이블 삭제(DROP TABLE 테이블명)
+
+CREATE TABLE BOOK(
+    BOOKID    NUMBER(4) PRIMARY KEY,       -- BOOKID필드의 타입은 숫자 4자리
+    BOOKNAME  VARCHAR2(20),  -- BOOKNAME필드의 타입은 문자 20바이트(한글1자 = 3바이트)
+    PUBLISHER VARCHAR2(20),
+    REATE     DATE,             -- RDATE필드의 타입은 DATE형(날짜+시간)
+    PRICE     NUMBER(9,2)      -- PRICE필드의 타입은 숫자 전체 8자리 중 소숫점 2자리
+);
+SELECT * FROM EMP;
+SELECT * FROM DEPT; -- 10, 20, 30, 40부서
+INSERT INTO EMP VALUES (9999, '홍길동', NULL, NULL, NULL, NULL, NULL, 40);
+-- DEPT와 유사한 DEPT01 생성 : DEPTNO(숫2-PK), DNAME(문14), LOC(문13)
+CREATE TABLE DEPT01(
+    DEPTNO NUMBER(2) PRIMARY KEY,
+    DNAME VARCHAR2(14),
+    LOC VARCHAR2(13)
+);
+INSERT INTO DEPT01 VALUES (10, '전산실', '신림');
+SELECT * FROM DEPT01;
+ROLLBACK; -- DML 취소
+-- EMP와 유사한 EMP01 생성 : EMPNO(숫4-PK), ENAME(문10), HIREDATE(날), SAL(숫7,2), DEPTNO(숫2-FK)
+CREATE TABLE EMP01(
+    EMPNO    NUMBER(4) PRIMARY KEY,
+    ENAME    VARCHAR2(10),
+    HIREDATE DATE,
+    SAL      NUMBER(7,2), -- 소숫점 앞 5자리 소수점 뒤2자리 총 7자리
+    DEPTNO   NUMBER(2) REFERENCES DEPT01(DEPTNO) -- 외래키(FOREIGN KEY) 제약조건
+);
+DROP TABLE EMP01;
+CREATE TABLE EMP01(
+    EMPNO    NUMBER(4) PRIMARY KEY,
+    ENAME    VARCHAR2(10),
+    HIREDATE DATE,
+    SAL      NUMBER(7,2), -- 소숫점 앞 5자리 소수점 뒤2자리 총 7자리
+    DEPTNO   NUMBER(2),
+    FOREIGN KEY(DEPTNO) REFERENCES DEPT01(DEPTNO)
+);
+INSERT INTO EMP01 VALUES(1001, '홍길동', SYSDATE, 9999, 10);
+COMMIT; -- 트랜젝션 영역에 쌓여 있는 DML 명령어들을 ORACLE 적용
+
+-- ★DML★
+
+-- 1. INSERT INTO 테이블명 (필드명1, 필드명2, ....) VALUES (값1, 값2, ...);
+    --INSERT INTO 테이블명 VALUES (값1, 값2, ..값N);
+SELECT * FROM DEPT01;
+INSERT INTO DEPT01 VALUES (50, 'ACCOUNTING', 'SEOUL');
+INSERT INTO DEPT01 (DEPTNO, LOC, DNAME) VALUES (60, '신림', '개발');
+INSERT INTO DEPT01 (DEPTNO, LOC, DNAME) VALUES (70, NULL, '영업'); -- 명시적 NULL 입력
+INSERT INTO DEPT01 (DEPTNO, DNAME) VALUES (80, '연구'); -- 묵시적 NULL 입력 
+-- 서브쿼리를 이용한 INSERT
+    --EX.DEPT 테이블의 20~40부서의 내용을 DEPT01 테이블에 INSERT
+    INSERT INTO DEPT01 SELECT *FROM DEPT WHERE DEPTNO >10;
+    
+-- QUIZ 1
+DROP TABLE SAM01;
+CREATE TABLE SAM01(
+    EMPNO NUMBER(4) PRIMARY KEY,
+    ENAME VARCHAR2(10),
+    JOB   VARCHAR2(9),
+    SAL   NUMBER(7,2)
+);
+
+INSERT INTO SAM01 VALUES (1000, 'APPLE', 'POLICE', 10000);
+INSERT INTO SAM01 VALUES (1010, 'BANANA', 'NURSE', 15000);
+INSERT INTO SAM01 VALUES (1020, 'ORANGE', 'DOCTOR', 25000);
+INSERT INTO SAM01 (EMPNO, ENAME, SAL) VALUES (1030, 'VERY', 25000);
+INSERT INTO SAM01 (EMPNO, ENAME, SAL) VALUES (1040, 'CAT', 2000);
+-- 서브쿼리로 데이터 삽입
+INSERT INTO SAM01 SELECT EMPNO, ENAME, JOB, SAL FROM EMP WHERE DEPTNO = 10;
+-- 데이터 오라클에 적용
+COMMIT;
+
+-- 2. UPDATE 테이블명 SET 필드명1=값1,[필드명2=값2, ..... 필드명n=값n][WHERE 조건1];
+DROP TABLE EMP01;
+-- 서브쿼리를 이용한 테이블 생성(제약조건 제외된 데이터만 가져옴)
+CREATE TABLE EMP01 AS SELECT EMPNO, ENAME, SAL, DEPTNO FROM EMP;
+SELECT * FROM EMP01;
+    --EX. 부서번호를 30번으로 수정
+    UPDATE EMP01 SET DEPTNO=30;
+    ROLLBACK;
+    --EX. 모든 사원(EMP01)의 급여(SAL)를 10%인상
+    UPDATE EMP01 SET SAL = SAL*1.1;
+    ROLLBACK;
+    -- EX. EMP01테이블의 10번부서의 직원을 30번 부서로
+    UPDATE EMP01 SET DEPTNO=30 WHERE DEPTNO=10;
+    ROLLBACK;
+    -- EX. SCOTT의 부서번호를 10으로, JOB는 'MANAGER'로 SAL과 COMM은 500$씩 인상,
+        -- 입사일은 오늘로, 상사는 'KING'로 수정
+    UPDATE EMP SET DEPTNO=10,
+                    JOB = 'MANAGER',
+                    SAL = SAL+500,
+                    COMM = NVL(COMM,0) + 500,
+                    -- HIREDATE = TO_DATE('25,11,17','RR/MM/DD'),
+                    HIREDATE = SYSDATE, -- SYSDATE: 현재날짜
+                    MGR = (SELECT EMPNO FROM EMP01 WHERE ENAME='KING')
+           WHERE ENAME='SCOTT';
+    SELECT * FROM EMP;
+    ROLLBACK;
+    -- EX. 모든 사원의 급여와 입사일을 'KING'의 급여와 입사일로 수정
+    UPDATE EMP 
+        SET SAL = (SELECT SAL FROM EMP WHERE ENAME='KING'),
+            HIREDATE = (SELECT HIREDATE FROM EMP WHERE ENAME='KING');
+    -- 서브쿼리가 겹치는 경우 테이블명을 한번에 사용할 수도 있다.
+     UPDATE EMP 
+        SET (SAL, HIREDATE) = (SELECT SAL, HIREDATE FROM EMP WHERE ENAME='KING');   
+    ROLLBACK;
+    
+-- 3. DELETE FROM 테이블명 [WHERE 조건];
+DELETE FROM EMP01;
+ROLLBACK; -- INSERT, UPDATE, DELETE만 취소 가능
+SELECT * FROM EMP01;
+DELETE FROM DEPT; -- 불가(EMP테이블의 참조된 데이터가 있어서)
+    -- EX. EMP01에서 'FORD' 직원 퇴사
+    DELETE FROM EMP01 WHERE ENAME='FORD';
+    -- EX. EMP01에서 30번 부서 직원을 삭제
+    DELETE FROM EMP01 WHERE DEPTNO = 30;
+    -- EX. 부서명이 RESEARCH 부서인 직원을 삭제
+    DELETE FROM EMP01 WHERE DEPTNO=(SELECT DEPTNO FROM DEPT WHERE DNAME='RESEARCH');
+    SELECT * FROM EMP01;
+    -- EX. SAM01테이블에서 JOB이 정해지지 않은 사원삭제
+    SELECT * FROM SAM01;
+    DELETE FROM SAM01 WHERE JOB IS NULL;
+    -- EX. SAM01에서 이름이 'ORANGE'인 데이터 삭제
+    DELETE FROM SAM01 WHERE ENAME = 'ORANGE';
+    COMMIT;
+    
+    
+-- 연습문제 2~3page연습문제(교안 9pgae)
+-- QUIZ2
+-- 1. MY_DATA 테이블 생성
+    CREATE TABLE MY_DATA(
+        ID      NUMBER(4),
+        NAME    VARCHAR2(10),
+        USERID  VARCHAR2(30),
+        SALARY  NUMBER(10,2)
+    );
+-- 2. 도표와 값은 값 입력
+    INSERT INTO MY_DATA VALUES(1, 'Scott', 'sscott', 10000);
+    INSERT INTO MY_DATA VALUES(2, 'Ford', 'fford', 13000);
+    INSERT INTO MY_DATA VALUES(3, 'Patel', 'ppatel', 33000);
+    INSERT INTO MY_DATA VALUES(4, 'Report', 'rreport', 23500);
+    INSERT INTO MY_DATA VALUES(5, 'Good', 'ggood', 44450);
+-- 3. TO_CHAR 내장함수를 이용하여 입력한 자료를 도표형식으로
+    SELECT ID, NAME, USERID, TO_CHAR(SALARY,'99,999.99') FROM MY_DATA;
+-- 4. 자료를 영구적으로 데이터베이스에 등록
+    COMMIT;
+-- 5. ID가 3번인 사람의 급여를 65000.00으로 갱신, 데이터베이스 반영
+    UPDATE MY_DATA SET SALARY = 65000.00 WHERE ID=3;
+    COMMIT;
+-- 6. NAME이 FORD인 사람 삭제, 데이터베이스 반영
+    DELETE FROM MY_DATA WHERE NAME='Ford';
+    COMMIT;
+-- 7. SALARY가 15000이하인 사람의 급여를 15000으로 변경
+    UPDATE MY_DATA SET SALARY = 15000 WHERE SALARY <= 15000;
+-- 8. 위에서 생성한 테이블 삭제
+    DROP TABLE MY_DATA;
+
+-- QUIZ3
+-- 1. EMP 테이블과 같은 구조와 같은 내용의 테이블 EMP01을 생성(테이블 있을 시 제거 후), 모든 사원의 부서번호 30번으로 수정
+    DROP TABLE EMP01;
+    CREATE TABLE EMP01 AS SELECT * FROM EMP;
+    UPDATE EMP01 SET DEPTNO = 30;
+    SELECT * FROM EMP01;
+-- 2. EMP01의 모든 사원 급여 10% 인상
+    UPDATE EMP01 SET SAL = SAL*1.1;
+-- 3. 급여가 3000 이상인 사원만 급여를 10% 인상
+    UPDATE EMP01 SET SAL = SAL*1.1 WHERE SAL >= 3000;
+-- 4. EMP01 테이블에서 DALLAS에서 근무하는 직원들의 급여 1000인상
+    ROLLBACK;
+    UPDATE EMP01 SET SAL = SAL +1000 WHERE DEPTNO = (SELECT DEPTNO FROM DEPT WHERE LOC = 'DALLAS');
+--  5. SCOTT의 부서번호를30, 직급은 MANAGER로 수정(하나의 식)
+    UPDATE EMP01 SET DEPTNO = 30, JOB = 'MANAGER' WHERE ENAME = 'SCOTT'; 
+-- 6. 부서명이 SALES인 사원을 모두 삭제
+    ROLLBACK;
+    DELETE FROM EMP01 WHERE DEPTNO = (SELECT DEPTNO FROM DEPT WHERE DNAME='SALES');
+-- 7. 사원명이 FORD인 사원을 삭제
+    DELETE FROM EMP01 WHERE ENAME='FORD';
+-- 8. SAM01 테이블에서 JOB이 NULL인 사원 삭제'
+    DELETE FROM SAM01 WHERE JOB IS NULL;
+-- 9. SAM01에서 ENAME이 ORANGE인 사원 삭제;
+    DELETE FROM SAM01 WHERE ENAME = 'ORANGE';
+-- 10. 급여가 1500 이하인 사람의 급여를 1500으로 수정
+    UPDATE EMP01 SET SAL = 1500 WHERE SAL <=1500;
+-- 11. JOB이 'MANAGER'인 사원의 급여를 10% 인하
+    UPDATE EMP01 SET SAL = SAL*0.9  WHERE JOB = 'MANAGER';
+
+-- ★★★제약조건
+-- (1) PRIMARY KEY  : 테이블의 각 행을 유일한 값으로 식별하기 위한 필드
+-- (2) FOREIGN KEY  : 테이블의 열이 다른 테이블의 열을 참조
+-- (3) NOT NULL     : NULL을 포함하지 않음
+-- (4) UNIQUE       : 모든 행의 값이 유일해야. NULL값은 허용(NULL은 여러개 가능)
+-- (5) CHECK(조건)  : 해당 조건이 만족(NULL값 허용)
+-- (6) DEFAULT 기본값 : 기본값 설정(해당 열의 데이터를 입력하지 않고 INSERT하면 NULL이 들어갈 것을 DEFAULT값이 들어가도록)
+
+-- DEPT1 & EMP1 테이블 생성
+CREATE TABLE DEPT1( -- 제약조건을 옆에 기술(NOT NULL은 아래에 기술 불가)
+    DEPTNO NUMBER(2)    PRIMARY KEY,
+    DNAME  VARCHAR2(14) NOT NULL UNIQUE,
+    LOC    VARCHAR2(13) NOT NULL
+);
+CREATE TABLE EMP1( -- 제약조건을 옆에 기술
+    EMPNO NUMBER(4) PRIMARY KEY,
+    ENAME VARCHAR2(20) NOT NULL,
+    JOB VARCHAR2(20) NOT NULL,
+    MGR NUMBER(4),
+    HIREDATE DATE DEFAULT SYSDATE,
+    SAL NUMBER(7,2) CHECK(SAL>0),
+    COMM NUMBER(7,2),
+    DEPTNO NUMBER(2) REFERENCES DEPT1(DEPTNO)
+);
+
+SELECT * FROM DEPT1; 
+SELECT * FROM EMP1;
+-- 두 테이블 삭제 후 제약조건을 아래에 기술
+DROP TABLE EMP1;
+DROP TABLE DEPT1;
+
+CREATE TABLE DEPT1( -- 제약조건을 아래에 기술(NOT NULL은 아래에 기술 불가)
+    DEPTNO NUMBER(2),
+    DNAME  VARCHAR2(14) NOT NULL,
+    LOC    VARCHAR2(13) NOT NULL,
+    PRIMARY KEY(DEPTNO),
+    UNIQUE(DNAME)
+);
+CREATE TABLE EMP1( -- 제약조건을 아래에 기술
+    EMPNO NUMBER(4),
+    ENAME VARCHAR2(20) NOT NULL,
+    JOB VARCHAR2(20) NOT NULL,
+    MGR NUMBER(4),
+    HIREDATE DATE DEFAULT SYSDATE,
+    SAL NUMBER(7,2),
+    COMM NUMBER(7,2),
+    DEPTNO NUMBER(2),
+    PRIMARY KEY(EMPNO),
+    CHECK(SAL>0),
+    FOREIGN KEY(DEPTNO)REFERENCES DEPT1(DEPTNO)
+);
+
+INSERT INTO DEPT1 SELECT * FROM DEPT;
+INSERT INTO DEPT1 VALUES (50,'SALES', '서울'); -- UNIQUE 애러
+INSERT INTO DEPT1 (DEPTNO, DNAME) VALUES (50,'전산'); -- NOT NULL 에러
+INSERT INTO EMP1 (EMPNO, ENAME, JOB, DEPTNO) VALUES(9001, 'HONG', 'MANAGER', 40);
+-- INSERT에서 언급되지 않은 필드는 NULL, 단 DEFAULT가 존재할 경우 DEFAULT값으로 입력
+SELECT * FROM EMP1 WHERE EMPNO=9001;
+INSERT INTO EMP1 (EMPNO, ENAME, JOB, SAL) VALUES (9002, 'KIM', 'MANAGER', -90); -- CHECK 에러
+INSERT INTO EMP1 (EMPNO, ENAME, JOB, SAL) VALUES (9002, 'KIM', 'MANAGER', 90);
+
+-- 연습문제 PDF 4PAGE
+CREATE TABLE MAJOR(
+    mCODE NUMBER(1) PRIMARY KEY,
+    mNAME VARCHAR2(20),
+    mOFFICE VARCHAR2(20)
+);
+
+CREATE TABLE STUDENT(
+    sNO NUMBER(3) PRIMARY KEY,
+    sNAME VARCHAR2(20),
+    sSCORE NUMBER(3) CHECK(sSCORE BETWEEN 0 AND 100),
+    mCODE NUMBER(1) REFERENCES MAJOR(mCODE)
+);
+
+INSERT INTO MAJOR VALUES (1, '컴퓨터공학', 'A101호');
+INSERT INTO MAJOR VALUES (2, '빅데이터', 'A102호');
+INSERT INTO STUDENT VALUES(101, '홍길동', 99, 1);
+INSERT INTO STUDENT VALUES(102, '신길동', 100, 2);
+
+SELECT sNO 학번, sNAME 이름, sSCORE 점수, M.mCODE 학과코드, mNAME 학과명,  mOFFICE 학과사무실
+    FROM STUDENT S, MAJOR M
+    WHERE S.mCODE = M.mCODE;
+
+
+

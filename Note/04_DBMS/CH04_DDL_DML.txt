@@ -1,0 +1,29 @@
+DML: Data Manipulation Language 데이터 검색, 수정 등 (INSERT[삽입], DELETE[삭제], UPDATE[수정], SELECT)
+	INSERT INTO 테이블명 [(추가하고픈 필드명)] VALUSE (필드명들);
+	UPDATE 테이블명 SET 수정할 필드명 = 수정할 값 [WHERE 조건];
+	DELETE FROM 테이블명 [WHERE 조건];
+	
+	데이터형: 
+		CHAR(size) ; 고정 길이 문자 데이터
+		VARCHAR2(size) ; Up to 4000 Bytes 
+		NUMBER(w) ; W자리까지의 수치로 최대 38자리까지 
+		NUMBER(w, d) ; W는 전체 길이, d는 소수점 이하 자릿수이다
+		DATE : BC 4712년 1월 1일~AD 4712년 12월 31일까지
+		CLOB는 e-BOOK과 같은 대용량의 텍스트 데이터를 저장
+	
+	ROLLBACK: 반영되지 않은 DML 실행 전으로 초기화 
+	COMMIT: 데이터베이스에 DML 실행한 값들 반영
+
+DDL  :  Data Definition Language ; 데이터와 그 구조를 정의(CREATE, DROP)
+	CREATE TABLE 테이블명(필드명들 필드의데이터형들);
+	-- 서브쿼리로 테이블생성
+	CREATE TABLE 테이블명 [AS SELECT 필드명들 FROM 가져올 테입블명];
+	DROP TABLE 테이블명
+
+제약조건
+	PRIMARY KEY  : 테이블의 각 행을 유일한 값으로 식별하기 위한 필드
+	FOREIGN KEY  : 테이블의 열이 다른 테이블의 열을 참조
+	NOT NULL     : NULL을 포함하지 않음
+	UNIQUE       : 모든 행의 값이 유일해야. NULL값은 허용(NULL은 여러개 가능)
+	CHECK(조건)  : 해당 조건이 만족(NULL값 허용)
+	DEFAULT 기본값 : 기본값 설정
