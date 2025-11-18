@@ -1,0 +1,13 @@
+SEQUENCE -순번생성기
+    생성
+	CREATE SEQUENCE 시퀀스명 [
+		START WITH 시작번호 		 -- 기본값1
+		INCREMENT BY 증감치 		 -- 기본값1
+		MAXVALUE || MINVALUE 최댓값||최솟값
+		NOCYCLE (최대, 최소를 넘으면 에러)   	 -- 기본값CYCLE(최대,최소를 넘으면 사이클)
+		NOCACHE			 -- 기본값CACHE(호출 시 그 번호 +20까지 캐시)
+	]; 
+    삭제
+	DROP SEQUENCE 시퀀스명;
+    수정
+	ALTER SEQUENCE 시퀀스명 [INCREAMENT BY n] [START WITH n] [MAXVALUE n][MINVALUE n];

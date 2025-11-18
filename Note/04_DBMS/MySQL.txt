@@ -1,0 +1,17 @@
+MySQL
+	Oracle과의 차이점이 약간 존재
+	ex) FK(외래키)
+		Oracle은 외래키 제약조건을 필드 옆에 기술해도 되나 MySQL에서는 아래에 기술해야 함
+	ex) self join
+		select sno, sname, m.mcode, mname, moffice
+		    from student s right outer join major m -- 데이터가 많은 쪽을 가리키면 됨(left, right)
+    		    on s.mcode = m.mcode;
+	ex) nvl 대신  ifnull
+		select pno, pname, ifnull(manager,'CEO') 'managerNo'
+			from personal;
+	ex) MySQL 타입 : numeric(n,d), varchar(n), date -- varchar은 byte수가 아닌 글자 수(한,영 관계X)
+		정수 : tinyint(1byte), smallint(2byte), mediumint(3byte)
+		        int/integer(4byte), bigint(8byte)
+		실수 : float(n, d;4byte), double(n,d; 8byte)
+		문자 : char(n), text, mediumtext(16MB), longtext(4GB)
+		날짜 : date, datetime, time
