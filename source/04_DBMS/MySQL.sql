@@ -167,6 +167,13 @@ select * from personal;
 		from division d, personal p left join personal mp 
         on p.manager = mp.pno -- outer 조인을 사용하는 경우에만 on에 작성한다.
         where d.dno = p.dno; -- equi join은 where절로 작성하면 된다.
+        
+	select p.pno, p.pname, mp.pname "manager", dname
+		from personal p left join personal mp on p.manager = mp.pno, division d -- on 까지가 한 절
+        where d.dno = p.dno;
+	
+    select p.pno, p.pname, mp.pname "manager", dname
+		from personal p left join personal mp on p.manager = mp.pno left join division d on d.dno = p.dno; -- 왼쪽 기준 조인
 -- 9. 이름이 s로 시작하는 사원 이름 (like 이용, substr함수이용, instr함수 이용등 다양하게 사용 가능)
 	select pname
 		from personal
@@ -176,6 +183,15 @@ select * from personal;
 		from personal p, personal mp, division d
         where p.manager = mp.pno and p.dno = d.dno;
 
+-- oracle과 다른 함수들과 연결연산자(||)
+select pname || '은' || job from personal; -- 연결연산이 안 됨
+select concat(pname, '은', job) from personal;
 
+select sysdate(); -- mysql는 select절 가능
+-- date_format(날짜형, 포멧) : 날짜형을 문자로
+-- date_format(문자형, 포멧) : 문자형을 날짜로
+	-- %Y(년도 4자리) %y(년도 2자리), %m(월), %d(일 01, 02...), %c(일 1,2)
+    -- %H(시[24시간]) %h(시[12시간]) %i(분) %s(초) %p(오전)
+select date_format(sysdate(),'%y년 %m월 %d일 %p %h:%i:%s') 현재시간;
 
 
