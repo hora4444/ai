@@ -1,0 +1,28 @@
+* 인공지능학습(dl/ml) : 지도학습 vs 비지도학습 vs 강화학습
+	- 지도학습 : 회귀분석 / 로지스틱 회귀분석 = 이진분류 / 다중분류 => DNN
+	- 비지도학습 : 군집화
+	- 강화학습 :
+* DNN, RNN, LSTM, 자연어처리
+* 스케일 조정(정규화, 표준화)하는 목적 : 모델 계산의 안정성 향상
+
+* model = Sequential([]) : 순차적 레이어 모델 생성
+  model = Model(inputs=xx, outputs=xx) 병렬모델
+	이중분류의 출력층 Dense(1, activation ='sigmoid')
+	다중분류의 출력층 Dense(1, activation ='softmax')
+* 학습과정 설정
+	- 손실함수(categorical_crossentropy,
+		sparse_categorical_crossentropy), optimizer(adam)
+	- 평가지표 : accuracy, precision, recall
+	- accuracy 높이기 위한 방법들
+		데이터 확보, 모델 수정(레이어추가, units수 증가), epochs조정, optimizer 변경
+	- 과적합 방지를 위한 방법
+		과적합 방지(validation data 추가, 균형잡히지 않은 데이터 증강, 활성화 함수 relu계열, tanh, dropout)
+	- 모델 저장(h5)
+	model.save('파일명') : h5, keras 
+
+* 자연어처리 : nltk[영어], konlpy/mecab[한글] 형태소추출(morphs), 명사추출(nouns), 품사태깅(pos)
+		pos(문장) =>[('강', 'NNP'), (형태소,품사),...] : 튜플 리스트
+
+* RNN(LSTM/GRU, seq2seq) : 텍스트 분류, 텍스트 해석, 자연어 생성, 시계열 데이터 예측, 작곡
+
+* CNN : 이미지 분류
