@@ -1,0 +1,16 @@
+우리나라가 인공지능(AI) 3대 강국 도약을 위해 국가적 역량을 총결집하는 가운데 국내 AI 스타트업 창업 생태계는 초기 기업이 생존하기 어려운 현실에 처해 있다는 암울한 분석이 나왔다.
+AI 기술혁신을 주도해야 할 AI 스타트업이 혁신의 꽃을 채 피우기도 전에 초기 성장 기반을 확보하지 못해 문 닫는 지경에 직면해 있는 것이 AI 3대 강국을 지향하는 우리의 AI 창업 생태계 현 주소라는 뼈아픈 지적이다.
+8일 한국산업기술진흥협회가 펴낸 ‘국내 AI 스타트업 R&D 현황 분석 및 시사점’ 보고서에 따르면 2023년 기준 국내 AI 스타트업 3년(설립 7년 이내) 생존율은 56.2%에 그쳤다.
+이는 AI 일반기업(72.7%)이나 전산업 평균(68.8%)보다 낮은 것으로, 국내 AI 스타트업이 초기 시장 안착과 성장 기반 확보에 어려움을 겪고 있음을 단적으로 보여준 결과로 해석된다.
+AI 기술 혁신의 최전선에 있는 스타트업의 역할은 갈수록 중요해지고 있다. 하지만 국내 AI 스타트업은 취약한 R&D 기반과 제한된 자원으로 핵심기술 개발에 역량을 쏟지 못하고 생존을 걱정해야 하는 상황이다.
+AI 스타트업은 재원 구조에서도 취약함을 드러냈다. 2023년 기준 이들의 연구개발비 중 정부재원 비중은 22.9%로, 산업 평균(5.7%)의 4배에 달했다. 정부출연금과 보조금에 사실상 의존해 연구개발을 수행하고 있는 셈이다.
+더욱이 외부 민간 재원 중 기업에서 유입되는 R&D 비중 역시 3.6%에 불과해 전산업 평균(0.6%) 대비 무려 6배 가량 높은 것으로 나타났다. AI 스타트업이 다른 기업에 비해 정부와 민간 등 외부 자금에 지나치게 의존할 수 밖에 없는 구조에 놓여 있음을 보여준다.
+국내 AI 스타트업이 외부에 의존하지 않고선 내부 자금으로 기업을 운영하기 어려운 팍팍한 현실에 처해 있다는 것이다.
+이렇다 보니 평균 연구개발비는 최근 3년간 연평균 15.4% 증가하며 늘고 있지만, 2023년 기준 5억9000만원 수준으로 전산업 평균(16억4000만원)과 비교해 3분의 1수준에 머물러 영세한 구조가 고착화되고 있다.
+
+While Korea is collecting its national capabilities to leap forward as three major artificial intelligence (AI) powerhouses, a grim analysis showed that the domestic AI start-up ecosystem is in a situation where it is difficult for early companies to survive.
+It is pointed out that the current address of our AI start-up ecosystem aimed at becoming one of the three major AI powerhouses is that AI start-ups, which should lead AI technology innovation, are facing closure because they cannot secure their initial growth base even before they bloom the flowers of innovation.
+According to a report released by the Korea Association for Industrial Technology Promotion on the 8th, the survival rate of domestic AI startups for three years (within seven years of establishment) was only 56.2% as of 2023.
+The role of startups at the forefront of AI technology innovation is becoming increasingly important. However, due to its weak R&D base and limited resources, domestic AI startups are unable to devote their capabilities to developing core technologies and have to worry about their survival.
+AI startups have also revealed their vulnerability in the financial structure. As of 2023, the proportion of government resources out of their R&D expenses was 22.9%, four times the industrial average (5.7%). In other words, R&D is being carried out by virtually relying on government contributions and subsidies.
+Moreover, the proportion of R&D flowing from companies among external private financial resources is also only 3.6%, which is six times higher than the average (0.6%) of all industries. It shows that AI start-ups are in a structure where they are forced to rely too much on external funds such as the government and the private sector compared to other companies.
