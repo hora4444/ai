@@ -1,0 +1,3 @@
+건설, 자동차, 헬스케어
+우선 지수명(IDX_NM) 종가(CLSPRC_IDX) 거래량(ACC_TRDVOL)만 크롤링
+

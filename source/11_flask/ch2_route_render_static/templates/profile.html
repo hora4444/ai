@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- <link href="/static/file.css" rel="'stylesheet" type="text/css"> -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+            rel="stylesheet"
+            type="text/css">
+    <title>Document</title>
+</head>
+<body>
+    <p class="fs-1 bg-danger">{{name}}님 연습화면(Jinja2템플릿)</p>
+    <table class="table table-striped">
+    <thead>
+        <tr class="table-Primary">
+        <th scope="col">이름</th>
+        <th scope="col">나이</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+        <td scope="row">{{name}}</td>
+        <td>{{age}}</td>
+        </tr>
+    </tbody>
+</table>
+</body>
+</html>
