@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{{url_for('static',filename='flask.png')}}" rel="'icon">
+    <link href="{{url_for('static',filename='file'.css)}}" rel="stylesheet">
+    <title>Document</title>
+</head>
+<body>
+    <h1>{{member.name.upper()}}님 join 정보</h1>
+    <h2>아이디 : {{member.id}}</h2>
+    <h2>비밀번호 : {{member.pw | mask_pw}}</h2>
+    <h2>주소 : {{member.addr}}</h2>
+    <from action="'/user">
+        <p><input type='text' name='name' value='{{member.name.lower()}}'></p>
+        <p><input type='submit' value='user로 GET전송'></p>
+    </from>
+</body>
+</html>
