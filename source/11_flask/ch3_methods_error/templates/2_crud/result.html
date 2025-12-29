@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="{{url_for('static', filename='flask.png')}}" rel="icon">
+    <link href="{{url_for('static', filename='file.css')}}" rel="stylesheet" type="text/css">
+    <title>Document</title>
+</head>
+<body>
+    <h1>{{member.name}}님 join 정보</h1>
+    <p>이 름 <input type ='text' id = 'name' value={{member.name}}></p>
+    <p>아 뒤 <input type ='number' id = 'id' value={{member.id}}></p>
+    <p>비 번 <input type ='password' id = 'pw' value={{member.pw}}></p>
+    <p>주 소 <input type ='text' id = 'addr' value={{member.addr}}></p>
+    <p>
+        <button id='update'>수정</button>
+        <button id="delete">삭제</button>
+    </p>
+    <p id="updateResult"></p>
+</body>
+</html>
+<script>
+    document.getElementById("delete").addEventListener('click', ()=>{
+        let id = document.getElementById('id').value;
+        const url = '/delete/'+id
+        // alert(url);
+        fetch(url,{method:'DELETE'}).then(response=>{
+            if(!response.ok){
+                alert('삭제 실패');
+                return;
+            }
+            return response.text(); // 서버 응답 받은 내용을 텍스트로 다음 then 함수의 data로 전달
+        })
+        .then(data=>{
+            alert(data);
+            location.href ='/' // location.href로 요청한 내용은 GET방식 요청
+        })
+    })
+
+    document.getElementById('update').addEventListener('click', ()=>{
+        let name = document.getElementById("name").value;
+        let id = document.getElementById('id').value;
+        let pw = document.getElementById('pw').value;
+        let addr = document.getElementById('addr').value;
+        name = encodeURIComponent(name);
+        addr = encodeURIComponent(addr);
+        // const url = '/updata/'+name+'/'+id+'/'+pw+'/'+addr
+        const url = `/update/${name}/${id}/${pw}/${addr}`;
+        // alret(url)
+        fetch(url, {method :'PUT'}).then(response =>{
+            if(!response.ok){ // 404 상태일 때는 response.ok가 flase
+                alert('수정실패')
+                return;
+            }
+            return response.text(); //서버 응답내용을 텍스트로 return 해서 다음 then 함수로 전달
+        })
+        .then(data=>{
+            document.getElementById('updateResult').innerHTML = data;
+        })
+    });
+</script>

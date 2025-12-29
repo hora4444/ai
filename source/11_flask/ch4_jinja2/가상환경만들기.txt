@@ -1,0 +1,6 @@
+
+ 1. ctrl + shift + p
+ 2. python:인터프리터 선택
+ 3. + 가상환경만들기
+ 4. Venv 현재 작업 영역에 '.venv' 가상환경을 만듭니다.
+ 5. python 선택(c -> user -> 컴퓨터명 -> anconda3 -> python.exe)
