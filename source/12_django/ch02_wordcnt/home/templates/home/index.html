@@ -8,10 +8,18 @@
     {% load static %}
     <img src="{% static 'img/django.png' %}" alt="그림">
     <a href="/test">TEST</a>
+    <a href="{% url 'test' %}">TEST</a>
     <hr>
     <a href="/showID/123">showID/123</a>
     <button onclick="location.href='/showID/abc'" class="btn btn-outline-primary"> showID/123</button>
+
+    <a href="{% url 'showIntId' 123 %}">showID/123</a>
+    <button onclick="location.href='{% url 'showIntId' 123 %}'" class="btn btn-outline-primary"> showID/123</button>
+
     <br>
     <a href="/showID/abc">showID/abc</a>
-    <button onclick="location.href='/showID/abc'" class="btn btn-danger"> showID/abc</button>
+    <button onclick="location.href='/showID/abc'" class="btn btn-outline-danger"> showID/abc</button>
+
+    <a href="{% url 'showStrId' 'abc' %}">showID/abc</a>
+    <button onclick="location.href='{% url 'showStrId' 'abc' %}'" class="btn btn-outline-danger"> showID/abc</button>
 {% endblock %}

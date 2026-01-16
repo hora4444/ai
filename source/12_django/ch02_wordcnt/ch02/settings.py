@@ -39,7 +39,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "home", # 앱 추가
-    #"wordcount",
+    "wordcnt",
 ]
 
 MIDDLEWARE = [
