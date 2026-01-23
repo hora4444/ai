@@ -172,6 +172,7 @@ def find_question_anchors(doc: fitz.Document):
     return anchors
 
 def detect_columns_by_text_blocks(page: fitz.Page, *, content_top=90, content_bottom_margin=90):
+
     """
     return list of (x_left, x_right) sorted by x_left
     - blocks 기반으로 x0 클러스터를 gap으로 나눠서 2~3컬럼 추정
@@ -226,6 +227,98 @@ def detect_columns_by_text_blocks(page: fitz.Page, *, content_top=90, content_bo
     cols = [c for c in cols if (c[1] - c[0]) >= w * 0.18] or cols
 
     return cols
+
+def build_solution_segments_reading_order(
+    doc,
+    anchors,
+    *,
+    pad=10,
+    content_top=120,
+    content_bottom_margin=120,
+):
+    """
+    해설용: '읽기 순서' (page 0: left -> right, page1: left -> right, ...)
+    로 다음 앵커까지 이어서 rect들을 만든다.
+    returns: dict[qnum] -> list[(pno, rect)]
+    """
+    from collections import defaultdict
+
+    def col_idx(pr, x0):
+        return 0 if x0 < pr.width / 2 else 1
+
+    def col_rect(pr, col, top, bottom):
+        top = max(top, content_top)
+        bottom = min(bottom, pr.height - content_bottom_margin)
+        mid = pr.width / 2
+        overlap = pr.width * 0.02
+        if col == 0:
+            return fitz.Rect(0, top, mid+overlap, bottom)
+        else:
+            return fitz.Rect(mid-overlap, top, pr.width, bottom)
+
+    def next_block(p, c):
+        # (p,0)->(p,1)->(p+1,0)
+        if c == 0:
+            return (p, 1)
+        return (p + 1, 0)
+
+    # anchors에 col 부여 + 읽기 순서로 정렬
+    anchors2 = []
+    for a in anchors:
+        pr = doc[a["page"]].rect
+        anchors2.append({**a, "col": col_idx(pr, a["x0"])})
+    anchors2.sort(key=lambda x: (x["page"], x["col"], x["y0"]))
+
+    segs = defaultdict(list)
+
+    for i, a in enumerate(anchors2):
+        qnum = a["qnum"]
+        p0 = a["page"]
+        c0 = a["col"]
+        y0 = a["y0"]
+
+        page0 = doc[p0]
+        pr0 = page0.rect
+        top0 = max(y0 - pad, content_top)
+        bottom_limit0 = pr0.height - content_bottom_margin
+
+        # 다음 앵커 (없으면 문서 끝까지)
+        b = anchors2[i + 1] if (i + 1 < len(anchors2)) else None
+
+        if b is None:
+            # 마지막: 현재 블록 끝까지
+            segs[qnum].append((p0, (col_rect(pr0, c0, top0, bottom_limit0) & pr0)))
+            # 이후 블록들(다른 컬럼/다음페이지)도 끝까지 붙이고 싶으면 여기서 확장 가능
+            continue
+
+        p1, c1 = b["page"], b["col"]
+        y1 = b["y0"]
+
+        # 같은 page/col이면 단순 컷
+        if p0 == p1 and c0 == c1:
+            bottom = min(max(y1 - pad, content_top), bottom_limit0)
+            segs[qnum].append((p0, (col_rect(pr0, c0, top0, bottom) & pr0)))
+            continue
+
+        # 1) 시작 블록: top0 -> bottom_limit0
+        segs[qnum].append((p0, (col_rect(pr0, c0, top0, bottom_limit0) & pr0)))
+
+        # 2) 중간 블록들: (p0,c0)의 다음 블록부터 (p1,c1) 직전까지 full
+        cur_p, cur_c = next_block(p0, c0)
+        while (cur_p, cur_c) != (p1, c1) and cur_p < len(doc):
+            pr = doc[cur_p].rect
+            bottom_limit = pr.height - content_bottom_margin
+            segs[qnum].append((cur_p, (col_rect(pr, cur_c, content_top, bottom_limit) & pr)))
+            cur_p, cur_c = next_block(cur_p, cur_c)
+
+        # 3) 마지막 블록(다음 앵커가 있는 블록): content_top -> next_y
+        if p1 < len(doc):
+            pr_last = doc[p1].rect
+            bottom_limit_last = pr_last.height - content_bottom_margin
+            bottom_last = min(max(y1 - pad, content_top), bottom_limit_last)
+            segs[qnum].append((p1, (col_rect(pr_last, c1, content_top, bottom_last) & pr_last)))
+
+    return segs
 
 def build_question_segments(doc, anchors, column_mode="auto", pad=6, content_top=90, content_bottom_margin=90):
     from collections import defaultdict
@@ -319,7 +412,6 @@ def build_question_segments(doc, anchors, column_mode="auto", pad=6, content_top
 
     return segs
 
-
 def _is_valid_rect(rect: fitz.Rect, min_size: float = 5.0) -> bool:
     # Rect 자체가 깨지거나(역전/0), 너무 작으면 저장할 의미가 없으니 스킵
     if rect is None:
@@ -349,132 +441,401 @@ def find_solution_anchors(doc: fitz.Document):
                 anchors.append({"qnum": qnum, "page": pno, "x0": x0, "y0": y0})
     return anchors
 
-def build_solution_segments_flow(doc, anchors, pad=12, content_top=140, content_bottom_margin=140):
-    from collections import defaultdict
+def _pick_col_index(cols, x0: float) -> int:
+    """cols: [(l,r), ...] 중 x0가 속한 컬럼 인덱스 반환"""
+    for i, (l, r) in enumerate(cols):
+        if l <= x0 < r:
+            return i
+    # fallback: 가장 가까운 컬럼
+    return min(range(len(cols)), key=lambda i: abs(((cols[i][0] + cols[i][1]) / 2) - x0))
 
-    def col_idx(page_rect, x0):
-        return 0 if x0 < page_rect.width / 2 else 1
+def _col_rect_from_cols(cols, col_idx: int, top: float, bottom: float) -> fitz.Rect:
+    l, r = cols[col_idx]
+    return fitz.Rect(l, top, r, bottom)
 
-    def col_rect(page_rect, col, top, bottom):
-        w = page_rect.width
-        mid = w / 2
-        if col == 0:
-            return fitz.Rect(0, top, mid, bottom)
-        return fitz.Rect(mid, top, w, bottom)
+def _split_rect_vertical(rect: fitz.Rect, n: int = 3, overlap_ratio: float = 0.02) -> list[fitz.Rect]:
+    """
+    rect를 세로로 n등분하되, 각 조각 사이에 overlap을 줘서 줄 단위 누락 방지
+    overlap_ratio: 각 조각 높이 대비 겹침 비율
+    """
+    if n <= 1:
+        return [rect]
 
-    # flow 정렬: page -> col -> y
-    anchors2 = []
-    for a in anchors:
-        pr = doc[a["page"]].rect
-        anchors2.append({**a, "col": col_idx(pr, a["x0"])})
-    anchors2.sort(key=lambda a: (a["page"], a["col"], a["y0"]))
+    h = rect.height
+    if h <= 0:
+        return []
 
+    chunk = h / n
+    overlap = chunk * overlap_ratio
+
+    out = []
+    for i in range(n):
+        y0 = rect.y0 + i * chunk
+        y1 = rect.y0 + (i + 1) * chunk
+
+        # overlap 적용
+        if i > 0:
+            y0 -= overlap
+        if i < n - 1:
+            y1 += overlap
+
+        rr = fitz.Rect(rect.x0, y0, rect.x1, y1)
+        out.append(rr)
+
+    return out
+
+def detect_columns_by_text_blocks(page: fitz.Page, *, content_top=120, content_bottom_margin=120):
+    """
+    페이지의 텍스트 블록 분포로 컬럼 경계를 추정.
+    반환: [(left, right), ...]
+    - 기본은 2컬럼을 기대하지만, 못 잡으면 1컬럼으로 fallback.
+    """
+    pr = page.rect
+    w = pr.width
+    bottom = pr.height - content_bottom_margin
+
+    blocks = page.get_text("blocks")  # (x0,y0,x1,y1, text, block_no, block_type)
+    xs = []
+    for b in blocks:
+        x0, y0, x1, y1 = b[0], b[1], b[2], b[3]
+        if y1 < content_top or y0 > bottom:
+            continue
+        # 너무 작은 블록(번호/페이지 등) 노이즈 제외
+        if (x1 - x0) < 20 or (y1 - y0) < 10:
+            continue
+        xs.append((x0, x1))
+
+    if not xs:
+        return [(0, w)]
+
+    # x0의 중앙값 기준으로 좌/우 컬럼 분리 시도
+    mids = [((a + b) / 2) for a, b in xs]
+    mid_global = sorted(mids)[len(mids) // 2]
+
+    left_blocks = [x for x in xs if ((x[0] + x[1]) / 2) < mid_global]
+    right_blocks = [x for x in xs if ((x[0] + x[1]) / 2) >= mid_global]
+
+    # 한쪽이 거의 비면 1컬럼 처리
+    if len(left_blocks) < 5 or len(right_blocks) < 5:
+        return [(0, w)]
+
+    left_l = min(x0 for x0, _ in left_blocks)
+    left_r = max(x1 for _, x1 in left_blocks)
+    right_l = min(x0 for x0, _ in right_blocks)
+    right_r = max(x1 for _, x1 in right_blocks)
+
+    # 컬럼 사이 갭이 너무 작으면 1컬럼 처리
+    if right_l - left_r < 10:
+        return [(0, w)]
+
+    # 너무 바깥 여백까지 먹지 않도록 살짝 클램프
+    left_l = max(0, left_l)
+    right_r = min(w, right_r)
+
+    return [(left_l, left_r), (right_l, right_r)]
+
+
+def build_solution_segments_flow(
+    doc: fitz.Document,
+    anchors: list[dict],
+    *,
+    pad: int = 12,
+    content_top: int = 140,
+    content_bottom_margin: int = 140,
+    split_n: int = 3,               # ✅ 무조건 3분할
+    split_overlap_ratio: float = 0.02
+):
+    """
+    해설(솔루션) 전용:
+    - detect_columns_by_text_blocks(page)로 컬럼을 잡고
+    - (page, col_idx, y0) 순서로 읽기 흐름 정렬
+    - a(현재 앵커) -> b(다음 앵커) 사이를 'flow'로 모두 rect로 쌓음
+    - 마지막에 rect가 길면 3분할해서 저장 (누락 방지)
+    """
     segs = defaultdict(list)
 
-    for i, a in enumerate(anchors2):
-        qnum, pno, col = a["qnum"], a["page"], a["col"]
+    # page별 컬럼 캐시
+    cols_cache = {}
+
+    def get_cols(pno: int):
+        if pno in cols_cache:
+            return cols_cache[pno]
         page = doc[pno]
-        pr = page.rect
-        top = max(a["y0"] - pad, content_top)
-        bottom_limit = pr.height - content_bottom_margin
+        cols = detect_columns_by_text_blocks(
+            page,
+            content_top=content_top,
+            content_bottom_margin=content_bottom_margin
+        )
+        cols_cache[pno] = cols
+        return cols
 
-        # 다음 앵커 (없으면 문서 끝으로)
-        if i + 1 < len(anchors2):
-            b = anchors2[i + 1]
-        else:
-            b = None
+    # 1) anchors에 col_idx를 붙여서 flow 정렬
+    anchors2 = []
+    for a in anchors:
+        pno = a["page"]
+        cols = get_cols(pno)
+        col_idx = _pick_col_index(cols, a["x0"])
+        anchors2.append({**a, "col": col_idx})
 
-        if b and b["page"] == pno and b["col"] == col:
-            bottom = min(max(b["y0"] - pad, content_top), bottom_limit)
-            rect = col_rect(pr, col, top, bottom) & pr
-            segs[qnum].append((pno, rect))
+    anchors2.sort(key=lambda a: (a["page"], a["col"], a["y0"]))
 
-        elif b and b["page"] == pno and b["col"] != col:
-            # 같은 페이지에서 왼->오 넘어감: 2조각
-            rect0 = (col_rect(pr, col, top, bottom_limit) & pr)
-            segs[qnum].append((pno, rect0))
+    # 2) a->b 구간을 flow로 rect 생성
+    for i, a in enumerate(anchors2):
+        qnum = a["qnum"]
+        p0 = a["page"]
+        col0 = a["col"]
 
-            # 다음이 다른 컬럼이므로, 그 컬럼의 content_top -> next_y
-            next_top = content_top
-            next_bottom = min(max(b["y0"] - pad, content_top), bottom_limit)
-            rect1 = (col_rect(pr, b["col"], next_top, next_bottom) & pr)
-            segs[qnum].append((pno, rect1))
+        page0 = doc[p0]
+        pr0 = page0.rect
+        bottom0 = pr0.height - content_bottom_margin
 
-        else:
-            # 페이지 넘어감: MVP는 "현재 컬럼의 남은 부분"만 잡고, 다음 페이지는 다음 앵커에서 시작
-            rect = col_rect(pr, col, top, bottom_limit) & pr
-            segs[qnum].append((pno, rect))
+        cols0 = get_cols(p0)
+
+        top_a = max(a["y0"] - pad, content_top)
+
+        b = anchors2[i + 1] if (i + 1) < len(anchors2) else None
+
+        if b is None:
+            # 문서 끝까지: p0부터 마지막까지 전부 flow로
+            # (1) 시작 페이지: 현재 col의 top_a~bottom, 이후 col들 전부
+            rect = _col_rect_from_cols(cols0, col0, top_a, bottom0) & pr0
+            if rect.height > 1 and rect.width > 1:
+                for rr in _split_rect_vertical(rect, n=split_n, overlap_ratio=split_overlap_ratio):
+                    segs[qnum].append((p0, rr & pr0))
+
+            for c in range(col0 + 1, len(cols0)):
+                rect = _col_rect_from_cols(cols0, c, content_top, bottom0) & pr0
+                if rect.height > 1 and rect.width > 1:
+                    for rr in _split_rect_vertical(rect, n=split_n, overlap_ratio=split_overlap_ratio):
+                        segs[qnum].append((p0, rr & pr0))
+
+            # (2) 이후 페이지들: 모든 컬럼 전체
+            for p in range(p0 + 1, len(doc)):
+                page = doc[p]
+                pr = page.rect
+                bottom = pr.height - content_bottom_margin
+                cols = get_cols(p)
+                for c in range(len(cols)):
+                    rect = _col_rect_from_cols(cols, c, content_top, bottom) & pr
+                    if rect.height > 1 and rect.width > 1:
+                        for rr in _split_rect_vertical(rect, n=split_n, overlap_ratio=split_overlap_ratio):
+                            segs[qnum].append((p, rr & pr))
+            continue
+
+        # b가 있는 경우: a -> b 직전까지
+        p1 = b["page"]
+        col1 = b["col"]
+
+        # --- 같은 페이지 & 같은 컬럼 ---
+        if p1 == p0 and col1 == col0:
+            bottom_a = min(max(b["y0"] - pad, content_top), bottom0)
+            rect = _col_rect_from_cols(cols0, col0, top_a, bottom_a) & pr0
+            if rect.height > 1 and rect.width > 1:
+                for rr in _split_rect_vertical(rect, n=split_n, overlap_ratio=split_overlap_ratio):
+                    segs[qnum].append((p0, rr & pr0))
+            continue
+
+        # --- 같은 페이지지만 다른 컬럼 (왼->오른쪽 흐름) ---
+        if p1 == p0 and col1 != col0:
+            # (1) 현재 컬럼: top_a ~ bottom
+            rect0 = _col_rect_from_cols(cols0, col0, top_a, bottom0) & pr0
+            if rect0.height > 1 and rect0.width > 1:
+                for rr in _split_rect_vertical(rect0, n=split_n, overlap_ratio=split_overlap_ratio):
+                    segs[qnum].append((p0, rr & pr0))
+
+            # (2) 다음 컬럼(col1): content_top ~ b.y0-pad
+            bottom_b = min(max(b["y0"] - pad, content_top), bottom0)
+            rect1 = _col_rect_from_cols(cols0, col1, content_top, bottom_b) & pr0
+            if rect1.height > 1 and rect1.width > 1:
+                for rr in _split_rect_vertical(rect1, n=split_n, overlap_ratio=split_overlap_ratio):
+                    segs[qnum].append((p0, rr & pr0))
+            continue
+
+        # --- 페이지가 넘어가는 경우: p0 -> ... -> p1 ---
+        # (1) 시작 페이지 p0:
+        #   - 현재 col0: top_a~bottom
+        rect0 = _col_rect_from_cols(cols0, col0, top_a, bottom0) & pr0
+        if rect0.height > 1 and rect0.width > 1:
+            for rr in _split_rect_vertical(rect0, n=split_n, overlap_ratio=split_overlap_ratio):
+                segs[qnum].append((p0, rr & pr0))
+
+        #   - 같은 페이지의 이후 컬럼들(col0+1..끝): 전체
+        for c in range(col0 + 1, len(cols0)):
+            rect = _col_rect_from_cols(cols0, c, content_top, bottom0) & pr0
+            if rect.height > 1 and rect.width > 1:
+                for rr in _split_rect_vertical(rect, n=split_n, overlap_ratio=split_overlap_ratio):
+                    segs[qnum].append((p0, rr & pr0))
+
+        # (2) 중간 페이지들: 모든 컬럼 전체
+        for p in range(p0 + 1, p1):
+            page = doc[p]
+            pr = page.rect
+            bottom = pr.height - content_bottom_margin
+            cols = get_cols(p)
+            for c in range(len(cols)):
+                rect = _col_rect_from_cols(cols, c, content_top, bottom) & pr
+                if rect.height > 1 and rect.width > 1:
+                    for rr in _split_rect_vertical(rect, n=split_n, overlap_ratio=split_overlap_ratio):
+                        segs[qnum].append((p, rr & pr))
+
+        # (3) 마지막 페이지 p1:
+        page_last = doc[p1]
+        pr_last = page_last.rect
+        bottom_last = pr_last.height - content_bottom_margin
+        cols_last = get_cols(p1)
+
+        #   - b의 컬럼(col1)보다 "앞" 컬럼들은 full
+        for c in range(0, col1):
+            rect = _col_rect_from_cols(cols_last, c, content_top, bottom_last) & pr_last
+            if rect.height > 1 and rect.width > 1:
+                for rr in _split_rect_vertical(rect, n=split_n, overlap_ratio=split_overlap_ratio):
+                    segs[qnum].append((p1, rr & pr_last))
+
+        #   - b의 컬럼(col1): content_top ~ b.y0-pad
+        bottom_b = min(max(b["y0"] - pad, content_top), bottom_last)
+        rect_end = _col_rect_from_cols(cols_last, col1, content_top, bottom_b) & pr_last
+        if rect_end.height > 1 and rect_end.width > 1:
+            for rr in _split_rect_vertical(rect_end, n=split_n, overlap_ratio=split_overlap_ratio):
+                segs[qnum].append((p1, rr & pr_last))
 
     return segs
 
-def render_exam_images(pdf_path: str, out_dir: Path, *, dpi: int = 200, kind: str = "question"):
-    """
-    kind: "question" | "solution"
-    returns dict[int, list[dict]]  # qnum -> list of asset dicts
-    """
+def render_question_images(pdf_path: str, out_dir: Path, *, dpi: int = 200):
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
     doc = fitz.open(pdf_path)
 
-    # (1) kind별 정책 결정 ✅ 여기서 pad/content_top/... 정의
-    if kind == "solution":
-        anchors = find_solution_anchors(doc)
-        column_mode = "auto"
-        pad = 10
-        content_top = 120
-        content_bottom_margin = 120
-        asset_type = "solution_image"
-    else:
-        anchors = find_question_anchors(doc)
-        column_mode = "fixed"
-        pad = 6
-        content_top = 90
-        content_bottom_margin = 90
-        asset_type = "question_image"
-
+    anchors = find_question_anchors(doc)
     if not anchors:
         doc.close()
         return {}
 
-    # (2) segs 생성 (중복 호출 제거) ✅
     segs = build_question_segments(
-        doc,
-        anchors,
-        column_mode=column_mode,
-        pad=pad,
-        content_top=content_top,
-        content_bottom_margin=content_bottom_margin,
+        doc, anchors,
+        column_mode="fixed",
+        pad=6,
+        content_top=90,
+        content_bottom_margin=90,
     )
 
     assets_by_q = {}
+    asset_type = "question_image"
 
     for qnum, rects in segs.items():
         assets = []
         for idx, (pno, rect) in enumerate(rects, start=1):
             page = doc[pno]
-
             rect = rect & page.rect
             if not _is_valid_rect(rect):
                 continue
-
             pix = page.get_pixmap(clip=rect, dpi=dpi)
             if pix.width <= 0 or pix.height <= 0:
                 continue
 
             img_path = out_dir / f"{asset_type}_q{qnum:02d}_p{pno+1}_{idx}.png"
             pix.save(str(img_path))
-
-            assets.append({
-                "type": asset_type,
-                "path": str(img_path).replace("\\", "/"),
-                "page": pno + 1
-            })
+            assets.append({"type": asset_type, "path": str(img_path).replace("\\", "/"), "page": pno + 1})
 
         assets_by_q[qnum] = assets
 
     doc.close()
     return assets_by_q
+
+def render_solution_images(pdf_path: str, out_dir: Path, *, dpi: int = 200):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    doc = fitz.open(pdf_path)
+
+    anchors = find_solution_anchors(doc)
+    if not anchors:
+        doc.close()
+        return {}
+
+    # segs = build_solution_segments_reading_order(
+    #     doc, anchors,
+    #     pad=10,
+    #     content_top=120,
+    #     content_bottom_margin=120,
+    # )
+
+    segs = build_solution_segments_3col_fixed(
+    doc, anchors,
+    pad=12,
+    content_top=140,
+    content_bottom_margin=140,
+    col_fracs=(5/12, 4/12, 3/12),
+    overlap_px=20,
+    )
+
+    assets_by_q = {}
+    asset_type = "solution_image"
+
+    for qnum, rects in segs.items():
+        assets = []
+        for idx, (pno, rect) in enumerate(rects, start=1):
+            page = doc[pno]
+            rect = rect & page.rect
+            if not _is_valid_rect(rect):
+                continue
+            pix = page.get_pixmap(clip=rect, dpi=dpi)
+            if pix.width <= 0 or pix.height <= 0:
+                continue
+
+            img_path = out_dir / f"{asset_type}_q{qnum:02d}_p{pno+1}_{idx}.png"
+            pix.save(str(img_path))
+            assets.append({"type": asset_type, "path": str(img_path).replace("\\", "/"), "page": pno + 1})
+
+        assets_by_q[qnum] = assets
+
+    doc.close()
+    return assets_by_q
+
+def render_exam_images(pdf_path: str, out_dir: Path, *, dpi: int = 200, kind: str = "question"):
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception as e:
+        print(f"[render_exam_images] open failed: {e}")
+        return {}
+
+    try:
+        # ... anchors/segs 구성 ...
+        if not anchors:
+            doc.close()
+            return {}
+
+        assets_by_q = {}
+
+        for qnum, rects in segs.items():
+            assets = []
+            for idx, (pno, rect) in enumerate(rects, start=1):
+                page = doc[pno]
+                rect = rect & page.rect
+                if not _is_valid_rect(rect):
+                    continue
+                pix = page.get_pixmap(clip=rect, dpi=dpi)
+                if pix.width <= 0 or pix.height <= 0:
+                    continue
+
+                img_path = out_dir / f"{asset_type}_q{qnum:02d}_p{pno+1}_{idx}.png"
+                pix.save(str(img_path))
+                assets.append({"type": asset_type, "path": str(img_path).replace("\\", "/"), "page": pno + 1})
+
+            assets_by_q[qnum] = assets
+
+        doc.close()
+        return assets_by_q
+
+    except Exception as e:
+        print(f"[render_exam_images] failed: {e}")
+        try:
+            doc.close()
+        except:
+            pass
+        return {}
+
 
 ROOT = Path("data")
 

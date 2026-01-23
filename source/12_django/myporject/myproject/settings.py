@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     "blog", # 앱 등록
+    "accounts",
 ]
 
 MIDDLEWARE = [
@@ -66,7 +67,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [
-            os.path.join(BASE_DIR, "myproject", "templates")
+            os.path.join(BASE_DIR, "myproject", "templates"),
         ],
         'APP_DIRS': True,
         'OPTIONS': {
@@ -130,8 +131,14 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
+# 개발환경
+STATIC_URL = 'static/' # 앱폴더 밑의 static
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, "myproject", 'static')
+]
 
-STATIC_URL = 'static/'
+#배포 후 운영환경(2월)
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
