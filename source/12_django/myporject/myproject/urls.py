@@ -20,6 +20,17 @@ from django.shortcuts import redirect
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path("", lambda request :redirect("blog:list")),
-    path("blog/", include("blog.urls"))
+    path("", lambda request :redirect("file:upload_file")), # 루트경로 접속시 파일업로드 페이지로 이동
+    path("blog/", include("blog.urls")),
+    path("book/", include("book.urls")),
+    path("article/", include("article.urls")),
+    path("file/", include("filetest.urls")),
 ]
+# 장고는 static은 자동연결, media는 개발자가 url과 root 경로를 수동연결
+from django.conf.urls.static import static
+import os
+from . import settings
+
+urlpatterns += static(settings.MEDIA_URL, # /media/
+                    document_root=settings.MEDIA_ROOT) # BASE_DIR/_media 저장
+
