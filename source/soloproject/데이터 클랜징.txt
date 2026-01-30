@@ -1,0 +1,63 @@
+import os
+import json
+
+BASE_DIR = r"C:\ai\source\soloproject\output\questions"
+
+def scan_mock_exams(grade):
+    # 예: C:\ai\source\soloproject\output\questions\g1\jsonl
+    jsonl_dir = os.path.join(BASE_DIR, grade, "jsonl")
+    
+    for file_name in os.listdir(jsonl_dir):
+        if file_name.endswith(".jsonl"):
+            jsonl_path = os.path.join(jsonl_dir, file_name)
+            
+            with open(jsonl_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    data = json.loads(line)
+                    # JSONL 내의 assets/path 추출
+                    for asset in data.get('assets', []):
+                        rel_path = asset.get('path') # "output/questions/assets/..."
+                        
+                        # 실제 시스템 절대 경로로 변환 (중요!)
+                        # 'output/questions/' 부분을 잘라내고 BASE_DIR와 결합하는 로직 필요
+                        pure_path = rel_path.replace("output/questions/", "")
+                        abs_image_path = os.path.join(BASE_DIR, pure_path)
+                        
+                        if os.path.exists(abs_image_path):
+                            print(f"[OK] {data['id']}: 이미지 확인됨")
+                        else:
+                            print(f"[ERROR] {data['id']}: 이미지 없음 -> {abs_image_path}")
+
+import json
+import os
+
+# 1. 수선할 JSONL 로드
+input_file = "2020_3_common_question.jsonl"
+output_file = "2020_3_common_question_fixed.jsonl"
+
+def fix_question_data(data):
+    # 여기서 LLM API를 호출한다고 가정 (이미지 경로 전달)
+    image_path = data['assets'][0]['path'] 
+    raw_text = data['question_text']
+    
+    # [가상 로직] LLM이 이미지를 보고 LaTeX로 반환함
+    # latex_text = call_llm_vision(image_path, raw_text)
+    
+    # 2. 새로운 필드에 저장 (원본 보존)
+    data['question_text_latex'] = "정제된 LaTeX 텍스트" 
+    return data
+
+# 3. 배치 처리
+with open(input_file, 'r', encoding='utf-8') as f_in, \
+     open(output_file, 'w', encoding='utf-8') as f_out:
+    for line in f_in:
+        item = json.loads(line)
+        fixed_item = fix_question_data(item)
+        f_out.write(json.dumps(fixed_item, ensure_ascii=False) + "\n")
+
+pip install nltk python-Levenshtein 후
+vscode cmd에서 
+python
+import nltk
+nltk.download('punkt')
+exit() 순으로 작성

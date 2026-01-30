@@ -1,0 +1,23 @@
+# 가상의 import_questions.py
+import json
+import os
+
+def run():
+    # 학원에서 정리한 경로 구조 활용
+    base_path = r"C:\ai\source\soloproject\output\questions\g1\jsonl\2020_3_common_question.jsonl"
+    
+    with open(base_path, 'r', encoding='utf-8') as f:
+        for line in f:
+            data = json.loads(line)
+            
+            # 1. 문제 기본 정보 추출
+            q_id = data['id']
+            text = data['question_text']
+            
+            # 2. Django 모델 객체 생성 (아직 저장 전)
+            # Question.objects.create(question_id=q_id, original_text=text, ...)
+            
+            # 3. 이미지 경로 처리 (이미지 폴더 구조 매칭)
+            for asset in data.get('assets', []):
+                img_path = asset['path']
+                # 이 경로를 Django의 Media 경로로 치환하여 저장

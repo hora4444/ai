@@ -1,0 +1,7 @@
+제미나이 추천 leafspark/Llama-3.2-11B-Vision-Instruct-GGUF
+
+JSONL 필드명,Django 모델 필드,비고
+problem_id,problem_uuid (PK),절대 겹치지 않는 고유 번호
+image_path,image (FileField),PNG 파일 저장 위치
+solution_raw,original_text,LLM이 가공하기 전 원본 텍스트
+(신규 생성),estimated_level,학생 풀이 기반으로 업데이트될 난이도
