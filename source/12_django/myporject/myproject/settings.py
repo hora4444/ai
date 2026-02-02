@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
+LANGUAGE_CODE = "ko-kr"
 BASE_DIR = Path(__file__).resolve().parent.parent
 # print("프로젝트 루트 폴더", BASE_DIR)
 # print(os.path.join(BASE_DIR, "myproject", "templates"))
@@ -102,18 +103,19 @@ DATABASES = {
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
 
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
+    # {
+    #     'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+    # }, # 다른 개인정보와 유사한 비밀번호 사용 불가
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
+        "OPTIONS":{"min_length":2}, #  최소 2자 이상 비밀번호
+    }, # 최소길이(기본 8자) 이상 비밀번호 사용
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
+    }, # 통상적으로 자주 사용되는 비밀번호 사용불가
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    }, # 숫자만으로 이루어진 비밀번호 사용 불가
 ]
 
 

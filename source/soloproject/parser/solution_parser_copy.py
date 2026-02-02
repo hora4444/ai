@@ -1,227 +1,211 @@
-import argparse, json, os, re, io
-from dataclasses import dataclass
+import os
+import re
+import json
+import fitz  # PyMuPDF
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 from PIL import Image
-import fitz
+import io
 
 # 이미지 픽셀 제한 해제
 Image.MAX_IMAGE_PIXELS = None
 
-@dataclass
-class GlobalAnchor:
-    qnum: int
-    track: str
-    global_y: float
+# [출제의도]를 찾는 강력한 패턴
+ANCHOR_PATTERN = re.compile(r"(\d+)[\.\]\s]*\[?(출제|정답|해설).*?의도.*?\]?", re.IGNORECASE)
 
-def parse_exam_filename(filename: str, grade: int) -> Optional[dict]:
-    base = Path(filename).stem
-    nums = re.findall(r"\d+", base)
-    year = int(nums[0]) if nums and len(nums[0]) == 4 else 2020
-    month = int(nums[1]) if len(nums) >= 2 else 3
-    kind = "solution" if any(kw in base for kw in ["해설", "정답", "sol"]) else "problem"
-    is_suneung = "수능" in base
-    return {"year": year, "month": month, "grade": grade, "kind": kind, "track": "common", "is_suneung": is_suneung}
+def parse_meta(filename: str, grade: int):
+    year = 2020
+    m_year = re.search(r"(\d{2,4})학년도", filename)
+    if m_year:
+        val = m_year.group(1)
+        year = int(val) if len(val) == 4 else int(val) + 2000
+    m_month = re.search(r"(\d{1,2})월", filename)
+    month = int(m_month.group(1)) if m_month else 3
+    return {"grade": grade, "year": year, "month": month, "track": "common"}
 
-def process_pdf_to_linear_canvas(pdf_path: str, meta: dict, dpi: int = 150):
-    doc = fitz.open(pdf_path)
-    all_column_images = []
-    global_anchors = []
-    current_total_height = 0
+def get_y_anchors_from_pdf(pdf_path, dpi=200):
+    """해설 PDF에서 각 문항의 Y축 위치(좌표)를 추출"""
+    try:
+        doc = fitz.open(pdf_path)
+    except:
+        return []
+    
+    anchors = []
+    current_h = 0
     scale = dpi / 72.0
-    
-    # [인식 강화] 고1, 고2에서 "출제의도"가 없거나 공백이 심한 경우 대비
-    # 숫자 뒤에 마침표나 대괄호가 오고 '출제' 혹은 '정답' 키워드가 오는 경우를 모두 탐색
-    ANCHOR_PATTERN = re.compile(r"(\d+)[\.\]\s]*\[?.*?(출제|정답|해설).*?의도?.*?\]?", re.IGNORECASE)
-
-    for p_idx in range(len(doc)):
-        page = doc[p_idx]
-        w, h = page.rect.width, page.rect.height
-        
-        # [자동 레이아웃 판별] 수능이거나 너비가 특정 기준 이하면 2단, 아니면 3단
-        if meta["is_suneung"]:
-            col_rects = [fitz.Rect(0, 0, w*0.48, h), fitz.Rect(w*0.52, 0, w, h)]
-        else:
-            # 일반 학평용 3단 구성 (여백 포함)
-            col_rects = [
-                fitz.Rect(0, 0, w*0.32, h),
-                fitz.Rect(w*0.34, 0, w*0.65, h),
-                fitz.Rect(w*0.67, 0, w, h)
-            ]
-
-        for rect in col_rects:
-            pix = page.get_pixmap(clip=rect, dpi=dpi)
-            img = Image.open(io.BytesIO(pix.tobytes()))
-            all_column_images.append(img)
-            
-            # 인식은 좀 더 넓게 (텍스트 누락 방지)
-            search_rect = fitz.Rect(rect.x0 - 10, 0, rect.x1 + 10, h)
-            blocks = page.get_text("blocks", clip=search_rect)
-            blocks.sort(key=lambda b: b[1])
-            
-            for b in blocks:
-                # 공백과 특수문자를 제거하여 파편화된 텍스트 병합
-                raw_text = re.sub(r'\s+', '', b[4])
-                m = ANCHOR_PATTERN.search(raw_text)
-                
-                if m:
-                    qnum = int(m.group(1))
-                    # 중복 인식 방지 (이전 앵커와 너무 가까우면 스킵)
-                    global_y = current_total_height + (b[1] * scale)
-                    if not global_anchors or abs(global_anchors[-1].global_y - global_y) > 50:
-                        global_anchors.append(GlobalAnchor(qnum, "common", global_y))
-            
-            current_total_height += img.height
-
-    if not all_column_images: return None, [], doc
-
-    # 3. 모든 단을 세로로 병합
-    max_w = max(img.width for img in all_column_images)
-    combined_img = Image.new("RGB", (max_w, current_total_height), (255, 255, 255))
-    y_ptr = 0
-    for img in all_column_images:
-        combined_img.paste(img, (0, y_ptr))
-        y_ptr += img.height
-        
-    return combined_img, global_anchors, doc
-
-def process_pdf_to_linear_canvas(pdf_path: str, grade: int, dpi: int = 150):
-    doc = fitz.open(pdf_path)
-    all_column_images = []
-    global_anchors = []
-    current_total_height = 0
-    scale = dpi / 72.0
-    
-    # 공백 제거 후 인식하는 강력한 패턴
-    ANCHOR_PATTERN = re.compile(r"(\d+)[\.\[]출제.*?의도")
-
-    for p_idx in range(len(doc)):
-        page = doc[p_idx]
-        w, h = page.rect.width, page.rect.height
-        
-        # [사용자 제안 반영: 정밀 3단 분할]
-        # 단 사이의 미세한 간섭을 줄이기 위해 경계면에 아주 약간의 여백(1%)을 둡니다.
-        col_rects = [
-            fitz.Rect(0, 0, w * 0.32, h),           # 1열 (좌)
-            fitz.Rect(w * 0.34, 0, w * 0.65, h),    # 2열 (중)
-            fitz.Rect(w * 0.67, 0, w, h)            # 3열 (우)
-        ]
-
-        for col_idx, rect in enumerate(col_rects):
-            # 1. 단 이미지 추출
-            pix = page.get_pixmap(clip=rect, dpi=dpi)
-            img = Image.open(io.BytesIO(pix.tobytes()))
-            all_column_images.append(img)
-            
-            # 2. 앵커 인식 (인식 영역은 이미지보다 좌우로 5pt씩 더 넓게 설정해서 번호 누락 방지)
-            search_rect = fitz.Rect(rect.x0 - 5, 0, rect.x1 + 5, h)
-            blocks = page.get_text("blocks", clip=search_rect)
-            blocks.sort(key=lambda b: b[1])
-            
-            for b in blocks:
-                text = b[4].replace(" ", "").replace("\n", "")
-                m = ANCHOR_PATTERN.search(text)
-                if m:
-                    qnum = int(m.group(1))
-                    # 절대 Y좌표 = 지금까지 쌓인 기차의 총 높이 + 현재 조각에서의 상대 높이
-                    global_y = current_total_height + (b[1] * scale)
-                    global_anchors.append(GlobalAnchor(qnum, "common", global_y))
-            
-            # 조각 하나를 붙일 때마다 기차의 전체 높이를 갱신
-            current_total_height += img.height
-
-    # 3. 모든 조각 이미지를 하나의 거대한 세로 이미지로 병합
-    if not all_column_images:
-        return None, [], doc
-
-    max_width = max(img.width for img in all_column_images)
-    combined_img = Image.new("RGB", (max_width, current_total_height), (255, 255, 255))
-    
-    y_ptr = 0
-    for c_img in all_column_images:
-        combined_img.paste(c_img, (0, y_ptr))
-        y_ptr += c_img.height
-        
-    return combined_img, global_anchors, doc
-
-def build_solution_items(pdf_path: str, meta: dict, dpi: int, out_root: Path):
-    big_canvas, anchors, doc = process_pdf_to_linear_canvas(pdf_path, meta, dpi)
-    anchors.sort(key=lambda x: x.global_y)
-    
-    # 앵커가 아예 안 잡혔을 때의 예외 처리
-    if not anchors:
-        print(f"  [!] No anchors found in {Path(pdf_path).name}")
-        doc.close()
-        return {}
-
-    tracks_items = {}
-    for i in range(len(anchors)):
-        curr = anchors[i]
-        nxt = anchors[i+1] if i + 1 < len(anchors) else None
-        
-        # 컷팅 범위 설정 (번호 위로 30px, 다음 번호 위 20px까지)
-        y0 = max(0, curr.global_y - 30)
-        y1 = (nxt.global_y - 25) if nxt else big_canvas.height
-        if y1 <= y0: y1 = y0 + 500 # 최소 높이 보장
-        
-        crop_img = big_canvas.crop((0, y0, big_canvas.width, y1))
-        
-        # 경로 생성 및 저장
-        rel_path = Path(f"g{meta['grade']}") / f"{meta['year']}_{meta['month']:02d}" / curr.track / f"q{curr.qnum:02d}.png"
-        save_path = out_root / "solutions" / "assets" / rel_path
-        save_path.parent.mkdir(parents=True, exist_ok=True)
-        crop_img.save(save_path)
-
-        item = {
-            "qnum": curr.qnum,
-            "track": curr.track,
-            "assets": [f"assets/solutions/{rel_path.as_posix()}"],
-            "meta": meta
-        }
-        tracks_items.setdefault(curr.track, []).append(item)
-    
+    for page in doc:
+        page_h = page.rect.height * scale
+        blocks = page.get_text("blocks")
+        for b in blocks:
+            text = b[4].strip()
+            clean_text = re.sub(r'\s+', '', text)
+            m = ANCHOR_PATTERN.search(clean_text)
+            if m:
+                qnum = int(m.group(1))
+                anchors.append({"qnum": qnum, "y": current_h + (b[1] * scale)})
+        current_h += page_h
     doc.close()
-    return tracks_items
+    
+    # 중복 제거 및 정렬
+    seen = set()
+    res = []
+    for a in sorted(anchors, key=lambda x: x['y']):
+        if a['qnum'] not in seen:
+            res.append(a)
+            seen.add(a['qnum'])
+    return res
+
+def split_with_anchors(img_path, out_dir, meta, anchors):
+    img = Image.open(img_path)
+    w, h = img.size
+    
+    # 1. 비율 계산 (PDF 좌표계를 PNG 크기에 맞춤)
+    # 앵커들 중 가장 마지막 앵커의 Y좌표를 기준으로 잡거나, 
+    # PDF 전체 높이 정보를 가져와서 매칭해야 합니다.
+    # 여기서는 간단하게 마지막 앵커가 이미지 끝 근처라고 가정하고 비율을 보정합니다.
+    
+    sol_assets = {}
+    rel_folder = f"assets/solutions/g{meta['grade']}/{meta['year']}_{meta['month']}"
+    target_dir = out_dir / rel_folder
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    if not anchors:
+        # 앵커가 없으면 기존처럼 균등 분할
+        unit = h / 30
+        for i in range(1, 31):
+            y0, y1 = (i-1)*unit, i*unit
+            crop = img.crop((0, y0, w, y1))
+            crop.save(target_dir / f"q{i:02d}.png")
+            sol_assets[i] = [f"{rel_folder}/q{i:02d}.png"]
+        return sol_assets
+
+    # 2. 앵커 기반 커팅 (이미지 범위를 벗어나지 않게 철저히 계산)
+    for i, curr in enumerate(anchors):
+        qnum = curr['qnum']
+        
+        # 시작 좌표 (이미지 높이 h를 넘지 않게)
+        y0 = min(max(0, curr['y'] - 15), h - 1)
+        
+        # 끝 좌표 (다음 앵커가 있으면 거기까지, 없으면 이미지 끝 h까지)
+        if i + 1 < len(anchors):
+            y1 = min(anchors[i+1]['y'] - 15, h)
+        else:
+            y1 = h
+            
+        # [SystemError 방지] y1이 y0보다 작거나 같으면 무효 (이미지 밖)
+        if y1 <= y0:
+            continue
+
+        try:
+            crop = img.crop((0, y0, w, y1))
+            fname = f"q{qnum:02d}.png"
+            crop.save(target_dir / fname)
+            sol_assets[qnum] = [f"{rel_folder}/{fname}"]
+        except SystemError:
+            print(f"      [경고] q{qnum} 자르기 실패: 좌표 ({y0}, {y1})가 이미지 범위({h})를 벗어남")
+
+    return sol_assets
+
+def extract_question_data(pdf_path, out_dir, meta):
+    """문제 PDF에서 텍스트와 그림 추출"""
+    doc = fitz.open(pdf_path)
+    questions = {}
+    q_assets = {}
+    current_q = None
+    q_re = re.compile(r"^\s*(\d{1,2})\.") 
+    
+    # 그림 저장 폴더
+    rel_q_folder = f"assets/questions/g{meta['grade']}/{meta['year']}_{meta['month']}"
+    (out_dir / rel_q_folder).mkdir(parents=True, exist_ok=True)
+
+    for page_num, page in enumerate(doc):
+        # 1. 텍스트 추출
+        lines = page.get_text("text").splitlines()
+        for line in lines:
+            m = q_re.match(line)
+            if m:
+                current_q = int(m.group(1))
+                questions[current_q] = line + "\n"
+                q_assets[current_q] = []
+            elif current_q:
+                questions[current_q] += line + "\n"
+        
+        # 2. 그림 추출 (간이 버전: 페이지 내 이미지를 해당 문항에 할당)
+        img_list = page.get_images()
+        for img_idx, img_info in enumerate(img_list):
+            xref = img_info[0]
+            pix = fitz.Pixmap(doc, xref)
+            if current_q:
+                fname = f"p{page_num}_q{current_q}_{img_idx}.png"
+                pix.save(out_dir / rel_q_folder / fname)
+                q_assets[current_q].append(f"{rel_q_folder}/{fname}")
+            pix = None
+
+    doc.close()
+    return questions, q_assets
 
 def main():
-    ap = argparse.ArgumentParser()
-    # 실행 파일 위치 기준 경로 설정
-    base_dir = Path(__file__).resolve().parent.parent
-    ap.add_argument("--input_dir", type=str, default=str(base_dir / "data"), help="folder containing PDFs")
-    ap.add_argument("--out_dir", type=str, default=str(base_dir / "output"), help="output root")
-    ap.add_argument("--dpi", type=int, default=200)
-    args = ap.parse_args()
+    ROOT = Path("data")
+    OUT = Path("output")
+    OUT.mkdir(exist_ok=True)
 
-    input_dir = Path(args.input_dir)
-    out_root = Path(args.out_dir)
+    # 문제 PDF만 수집
+    prob_files = [p for p in ROOT.rglob("*.pdf") if "해설" not in p.name and "고1" in str(p)]
 
-    pdf_paths = sorted(input_dir.rglob("*.pdf"))
-    if not pdf_paths:
-        print("No PDFs found under:", input_dir)
-        return
+    for p_path in prob_files:
+        meta = parse_meta(p_path.name, 1)
+        print(f"\n>>> [작업 시작] {p_path.name}")
 
-    for pdf_path in pdf_paths:
-        parts = " ".join(pdf_path.parts)
-        if "고1" in parts or "g1" in parts.lower(): grade = 1
-        elif "고2" in parts or "g2" in parts.lower(): grade = 2
-        elif "고3" in parts or "g3" in parts.lower(): grade = 3
-        else: grade = 1 # 기본값
-
-        meta = parse_exam_filename(pdf_path.name, grade)
-        if not meta or meta["kind"] != "solution": continue
-
-        print(f"[*] 처리 중: {pdf_path.name}")
-        tracks_items = build_solution_items(str(pdf_path), meta, args.dpi, out_root)
+        sol_img_path = None
+        sol_pdf_path = None
         
-        # JSONL 저장
-        for track, items in tracks_items.items():
-            jsonl_dir = out_root / "solutions" / "jsonl" / f"g{grade}"
+        # 1. 파일 매칭 (None으로 초기화 후 안전하게 찾기)
+        for sibling in p_path.parent.iterdir():
+            if "해설" in sibling.name:
+                if sibling.suffix.lower() in ['.png', '.jpg', '.jpeg']:
+                    sol_img_path = sibling
+                elif sibling.suffix.lower() == '.pdf':
+                    sol_pdf_path = sibling
+
+        # 2. 에러 방지용 체크 (exists 호출 전 None인지 먼저 확인)
+        if sol_img_path is not None:
+            print(f"      [성공] 해설 이미지 발견: {sol_img_path.name}")
+            
+            # 해설 PDF가 있다면 좌표(앵커)를 따고, 없으면 None 전달
+            anchors = []
+            if sol_pdf_path is not None:
+                print(f"      [참고] 해설 PDF를 참조하여 좌표를 계산합니다.")
+                anchors = get_y_anchors_from_pdf(sol_pdf_path)
+            else:
+                print(f"      [알림] 해설 PDF가 없어 균등 분할 모드로 작동합니다.")
+
+            # 이미지 커팅 (여기서 해설 이미지를 자름)
+            s_assets_map = split_with_anchors(sol_img_path, OUT, meta, anchors)
+            
+            # 문제 파일은 PDF에서 텍스트와 그림을 추출
+            q_text_map, q_assets_map = extract_question_data(p_path, OUT, meta)
+
+            # 3. 데이터 결합 및 JSONL 저장
+            final_items = []
+            for qnum in range(1, 31):
+                final_items.append({
+                    "id": f"g1_{meta['year']}_{meta['month']}_q{qnum}",
+                    "question_number": qnum,
+                    "question_text": q_text_map.get(qnum, "").strip(),
+                    "question_assets": q_assets_map.get(qnum, []),
+                    "solution_assets": s_assets_map.get(qnum, []), # 자른 이미지 경로
+                    "meta": meta
+                })
+
+            # 저장 로직
+            jsonl_dir = OUT / "jsonl" / "g1"
             jsonl_dir.mkdir(parents=True, exist_ok=True)
-            out_name = f"{meta['year']}_{meta['month']:02d}_{track}_solution.jsonl"
-            with open(jsonl_dir / out_name, "w", encoding="utf-8") as f:
-                for item in items:
-                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
-            print(f"  -> {track} 트랙 저장 완료.")
+            jsonl_path = jsonl_dir / f"{meta['year']}_{meta['month']}_combined.jsonl"
+            with open(jsonl_path, "w", encoding="utf-8") as f:
+                for it in final_items:
+                    f.write(json.dumps(it, ensure_ascii=False) + "\n")
+            print(f"      [완료] {jsonl_path.name} 저장됨")
+        else:
+            print(f"      [실패] 해설 이미지({p_path.stem}해설.png)가 없어 건너뜁니다.")
 
 if __name__ == "__main__":
     main()

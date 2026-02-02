@@ -61,3 +61,18 @@ python
 import nltk
 nltk.download('punkt')
 exit() 순으로 작성
+
+
+# 1. 기존 torch가 있다면 삭제 (학원용 CPU 버전 방지)
+pip uninstall torch torchvision torchaudio
+
+# 2. AMD GPU 가속을 위한 DirectML 패키지 설치
+pip install torch-directml torchvision
+
+# 수정 전
+# self.device = "cuda" if torch.cuda.is_available() else "cpu"
+
+# 수정 후 (AMD GPU 사용 설정)
+import torch_directml
+self.device = torch_directml.device() 
+print(f"[{self.device}] AMD GPU 가속 모드로 모델 로딩 중...")
