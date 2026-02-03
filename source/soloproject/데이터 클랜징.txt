@@ -76,3 +76,23 @@ pip install torch-directml torchvision
 import torch_directml
 self.device = torch_directml.device() 
 print(f"[{self.device}] AMD GPU 가속 모드로 모델 로딩 중...")
+
+
+
+
+------------------------------------------
+sol_assets, sol_texts = split_solution_png_by_anchors(...)
+
+rows = []
+for qnum in range(1, 31):
+    if qnum in sol_assets:
+        rows.append({
+            "id": f"g{grade}_{meta['year']}_{meta['month']}_{meta['track']}_q{qnum:02d}",
+            "grade": grade,
+            "year": meta["year"],
+            "month": meta["month"],
+            "track": meta["track"],
+            "question_number": qnum,
+            "solution_assets": sol_assets[qnum],
+            "solution_text": sol_texts.get(qnum, "")
+        })

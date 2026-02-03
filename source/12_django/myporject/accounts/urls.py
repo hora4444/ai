@@ -14,7 +14,7 @@ accounts.urls - 모든앱을 통틀어 하나밖에 없는 기능이라 app_name
 '''
 urlpatterns = [
     path("signup/", views.signup, name="signup"),
-    path("login/", views.login, name="login"),
+    path("login/", views.custom_login, name="login"),
     path("profile/", views.profile, name="profile"),
     path("logout/", views.logout, name="logout"),
 ]

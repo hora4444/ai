@@ -50,6 +50,31 @@ def parse_exam_filename(filename: str, grade):
 
 QUESTION_RE = re.compile(r"^\s*(\d{1,2})\.")
 
+NOISE_LINE_PATTERNS = [
+    r"^\s*\d{4}학년도",        # 2020학년도...
+    r"전국연합학력평가",        # 전국연합학력평가
+    r"학력평가\s*문제지",       # 문제지
+    r"수학영역",               # 수학영역
+    r"제\s*\d+\s*교시",         # 제2 교시
+    r"^\s*고\s*1\s*$",          # 고1
+    r"^━{5,}\s*$",              # 긴 구분선
+]
+
+def strip_noise_lines(s: str) -> str:
+    lines = (s or "").splitlines()
+    cleaned = []
+    for ln in lines:
+        t = ln.strip()
+        if not t:
+            continue
+        if any(re.search(pat, t) for pat in NOISE_LINE_PATTERNS):
+            continue
+        # "페이지번호만 있는 줄" 제거(예: 1, 2, 12 같은 단독 숫자)
+        if re.fullmatch(r"\d{1,3}", t):
+            continue
+        cleaned.append(t)
+    return "\n".join(cleaned).strip()
+
 def extract_questions(pdf_path):
     doc = fitz.open(pdf_path)
     questions = {}
@@ -81,14 +106,45 @@ def build_items(pdf_path, filename, grade, kind):
     # 파일별 폴더 생성(충돌 방지)
     is_solution = (kind == "solution")
     safe_name = filename.replace(".pdf", "")
-    assets_dir = Path("output")/ "questions" / "assets" / f"g{grade}"/ safe_name
+    assets_dir = Path("output")/ "assets" / "questions" / f"g{grade}"/ safe_name
     assets_by_q = render_exam_images(pdf_path, assets_dir, dpi=200, kind=kind)
+    for fp in assets_dir.rglob("*_p*_2.png"):
+        try:
+            fp.unlink()
+        except FileNotFoundError:
+            pass
+
+    def drop_header_tiles(paths):
+        out = []
+        for p in paths:
+            # p가 dict인 경우: p["path"]에서 파일명 추출
+            if isinstance(p, dict) and "path" in p:
+                name = Path(p["path"]).name
+                if re.search(r"_p\d+_2\.png$", name):
+                    continue
+                out.append(p)
+                continue
+
+            # p가 Path/str인 경우
+            name = p.name if hasattr(p, "name") else Path(str(p)).name
+            if re.search(r"_p\d+_2\.png$", name):
+                continue
+            out.append(p)
+        return out
 
     items = []
     is_common_fn = (lambda q: True) if grade <= 2 else (lambda q: q <= 22)
 
     for qnum, text in questions.items():
         stem, choices = split_choices(text)
+
+        stem = strip_noise_lines(stem)
+        choices = [strip_noise_lines(c) for c in choices]
+
+        raw_assets = assets_by_q.get(qnum, [])
+
+        raw_assets = drop_header_tiles(raw_assets)
+        
         item = {
             "id": f"g{grade}_{meta['year']}_{meta['month']}_{meta['track']}_q{qnum}",
             **meta,
@@ -97,14 +153,14 @@ def build_items(pdf_path, filename, grade, kind):
             "is_common": is_common_fn(qnum),
             "question_text": stem,
             "choices": choices,
-            "assets": assets_by_q.get(qnum, []),
+            "assets": raw_assets,
             "question_assets": [],   
             "solution_assets": [],   
         }
         if is_solution:
-            item["solution_assets"] = assets_by_q.get(qnum, [])
+            item["solution_assets"] = raw_assets
         else:
-            item["question_assets"] = assets_by_q.get(qnum, [])
+            item["question_assets"] = raw_assets
 
         items.append(item)
 
@@ -486,10 +542,12 @@ for pdf_path in pdf_paths:
 
     if "고1" in pdf_path.parts:
         grade = 1
-    elif "고2" in pdf_path.parts:
-        grade = 2
-    elif "고3" in pdf_path.parts:
-        grade = 3
+    # 시간 관계상 고1만 처리 고2 고3은 시간이 되면 추가 예정
+    # elif "고2" in pdf_path.parts:
+    #     grade = 2
+    # elif "고3" in pdf_path.parts:
+    #     grade = 3
+
     else:
         print("SKIP(no grade):", pdf_path)
         continue
@@ -509,7 +567,7 @@ for pdf_path in pdf_paths:
         continue
 
     items = build_items(str(pdf_path), filename, grade, kind)
-    out_path = Path("output") / "questions" / "jsonl" / f"g{grade}" / f"{meta['year']}_{meta['month']}_{meta['track']}_{kind}.jsonl"
+    out_path = Path("output") / "jsonl" / "question" / f"g{grade}" / f"{meta['year']}_{meta['month']}_{meta['track']}_{kind}.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_jsonl(items, out_path)
 
