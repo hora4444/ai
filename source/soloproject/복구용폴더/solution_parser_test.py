@@ -3,8 +3,8 @@ import os
 import json
 import numpy as np
 from pathlib import Path
-
-from PIL import Image
+import cv2
+from PIL import Image, ImageOps
 Image.MAX_IMAGE_PIXELS = None
 
 # ---- Optional: OCR deps ----
@@ -29,6 +29,41 @@ except Exception:
 # =========================
 ROOT = Path("data")          # 입력 루트
 OUT_ROOT = Path("output")    # 출력 루트 (하드코딩)
+
+def is_solution_header_like(pil_crop: Image.Image) -> bool:
+    """
+    '정답표/해설 헤더' 같은 조각을 스킵하기 위한 가벼운 판별.
+    - '해설'이 있는데 문항번호 패턴(1., 2) 등)이 없으면 헤더로 간주
+    """
+    w, h = pil_crop.size
+
+    # OCR 비용 줄이려고 상단~중앙 일부만 본다 (해설 헤더는 보통 상단에 있음)
+    roi = pil_crop.crop((0, 0, w, min(h, 260)))
+
+    # 너무 큰 이미지는 OCR 전 다운스케일(속도↑)
+    maxw = 900
+    if roi.size[0] > maxw:
+        ratio = maxw / roi.size[0]
+        roi = roi.resize((maxw, int(roi.size[1] * ratio)))
+
+    txt = pytesseract.image_to_string(roi, lang="kor+eng")
+    txt = txt.replace(" ", "")
+
+    has_haesul = ("해설" in txt)
+
+    # 문항 시작 패턴(대충)  "1." "12." "1)" "12)" "1．" 등
+    has_qnum = bool(re.search(r"(^|\n)([1-9]|[12]\d|30)[\.\)\］\]．]", txt))
+
+    # 해설 헤더는 보통 '해설' 있고 문항번호가 없다
+    if has_haesul and not has_qnum:
+        return True
+
+    # 정답표(숫자 밀집) 케이스도 대충 차단(숫자가 너무 많고 문항 패턴이 없으면)
+    digits = sum(ch.isdigit() for ch in txt)
+    if digits >= 25 and not has_qnum:
+        return True
+
+    return False
 
 # (선택) tesseract 설치 경로를 코드에 고정하고 싶으면 여기만 수정
 # PATH 환경변수로 tesseract가 잡혀 있으면 None으로 두면 됨.
@@ -136,62 +171,6 @@ def _preprocess_for_ocr(pil_img: Image.Image, scale: float = 0.55, left_ratio: f
     _, th = cv2.threshold(arr, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return th, scale
 
-
-# def get_anchors_from_solution_png(png_path: str):
-#     if not OCR_AVAILABLE:
-#         return []
-
-#     pil = Image.open(png_path)
-#     th, scale = _preprocess_for_ocr(pil, scale=0.55, left_ratio=0.30)
-
-#     data = pytesseract.image_to_data(
-#         th,
-#         lang="kor+eng",
-#         output_type=Output.DICT,
-#         config="--psm 6"
-#     )
-
-#     roi_w = th.shape[1]
-#     anchors = {}
-#     for i, txt in enumerate(data.get("text", [])):
-#         if not txt:
-#             continue
-#         t = txt.strip()
-#         m = QNUM_TOKEN_RE.match(t)
-#         if not m:
-#             continue
-
-#         qnum = int(m.group(1))
-#         if not (1 <= qnum <= 30):
-#             continue
-
-#         try:
-#             conf = float(data["conf"][i])
-#         except Exception:
-#             conf = -1
-
-#         left = data["left"][i]
-#         width = data["width"][i]
-#         height = data["height"][i]
-
-#         # 문항번호는 왼쪽에 있고, 폭이 작고, 어느 정도 신뢰도가 있어야 함
-#         if conf >= 0 and conf < 45:
-#             continue
-#         if left > int(roi_w * 0.22):      # 너무 오른쪽이면 가짜일 확률 큼
-#             continue
-#         if width > int(roi_w * 0.18):     # 너무 큰 박스면 가짜일 확률 큼
-#             continue
-#         if height < 8:                    # 너무 얇으면 노이즈
-#             continue
-
-#         y_small = data["top"][i]
-#         y_orig = int(y_small / scale)
-
-#         if qnum not in anchors or y_orig < anchors[qnum]:
-#             anchors[qnum] = y_orig
-
-#     return [{"qnum": k, "y": anchors[k]} for k in sorted(anchors.keys())]
-
 def get_anchors_from_solution_png(png_path: str):
     if TESS_ROOT:
         pytesseract.pytesseract.tesseract_cmd = os.path.join(TESS_ROOT, "tesseract.exe")
@@ -226,41 +205,6 @@ def get_anchors_from_solution_png(png_path: str):
                         anchors[qnum] = abs_y
 
     return [{"qnum": k, "y": anchors[k]} for k in sorted(anchors.keys())]
-
-# def split_solution_png_by_anchors(png_path: str, meta: dict, anchors: list):
-#     img = Image.open(png_path)
-#     w, h = img.size
-#     sol_assets = {}
-    
-#     # 저장 경로
-#     rel_folder = f"assets/solutions/g{meta['grade']}/{meta['year']}_{meta['month']}"
-#     target_dir = OUT_ROOT / rel_folder
-#     target_dir.mkdir(parents=True, exist_ok=True)
-
-#     # [수정] 1번의 시작점 설정 (이미지 최상단 혹은 정답표 아래 - 여기서는 상단 5% 지점 가정)
-#     # 보통 정답표가 위에 있으므로 1번 출제의도 이전까지는 정답표 영역일 수 있습니다.
-    
-#     for i in range(len(anchors)):
-#         qnum = anchors[i]['qnum']
-        
-#         # 시작점(y0): 현재 문항의 [출제의도] 위쪽
-#         y0 = max(0, anchors[i]['y'] - 50) 
-        
-#         # 끝점(y1): 다음 문항의 [출제의도] 바로 위까지
-#         if i + 1 < len(anchors):
-#             y1 = anchors[i+1]['y'] - 55
-#         else:
-#             y1 = h # 마지막 문항은 끝까지
-            
-#         crop = img.crop((0, y0, w, y1))
-#         # 내용물에 맞춰 흰 여백 제거
-#         crop = trim_to_content(crop) 
-
-#         fname = f"q{qnum:02d}.png"
-#         crop.save(target_dir / fname)
-#         sol_assets[qnum] = [f"{rel_folder}/{fname}"]
-        
-#     return sol_assets
 
 # 2. 실제 자르기 함수 (1번 문항에 정답표 포함)
 def split_solution_png_by_anchors(png_path: str, meta: dict, anchors: list):
@@ -365,16 +309,22 @@ def normalize_and_fill_anchors(anchors, img_h: int):
             final[i]["y"] = min(img_h - 1, final[i - 1]["y"] + 10)
     return final
 
+def pil_to_bgr(pil_img: Image.Image) -> np.ndarray:
+    rgb = np.array(pil_img.convert("RGB"))
+    return cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
 
-def trim_black_margins(img_bgr, black_thresh=20, margin=2):
+def bgr_to_pil(bgr: np.ndarray) -> Image.Image:
+    rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+    return Image.fromarray(rgb)
+
+def trim_black_margins(img_bgr, black_thresh=20, margin=2, pad=0):
     """
-    이미지의 '검정 배경' 여백을 제거한다.
-    - black_threshold: 0~255, 이 값 이하를 '검정'으로 간주
-    - pad: 너무 딱 붙지 않게 약간의 여백
+    '검정 여백' 제거.
+    - margin: bbox를 아주 조금 확장(안전)
+    - pad: bbox를 넉넉히 확장(글자 잘림 방지)
     """
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
 
-    # 검정이 아닌 픽셀(=내용/흰바탕 포함)을 찾는다
     mask = gray > black_thresh
     coords = np.column_stack(np.where(mask))
     if coords.size == 0:
@@ -384,91 +334,134 @@ def trim_black_margins(img_bgr, black_thresh=20, margin=2):
     y1, x1 = coords.max(axis=0)
 
     h, w = gray.shape
+
+    # 기본 margin 확장
     y0 = max(0, y0 - margin)
     x0 = max(0, x0 - margin)
     y1 = min(h - 1, y1 + margin)
     x1 = min(w - 1, x1 + margin)
 
+    # ✅ pad는 margin보다 더 크게 확장
+    if pad and pad > 0:
+        y0 = max(0, y0 - pad)
+        x0 = max(0, x0 - pad)
+        y1 = min(h - 1, y1 + pad)
+        x1 = min(w - 1, x1 + pad)
+
     return img_bgr[y0:y1+1, x0:x1+1]
+
+def pick_cut_y_by_whitespace(arr_gray, y_start, y_end, white_thr=245):
+    """
+    y_start~y_end 사이에서 '가로로 하얀 줄'이 많은 구간을 찾아
+    자르기 좋은 y를 반환. 없으면 None.
+    """
+    if y_end <= y_start + 50:
+        return None
+
+    row_means = np.mean(arr_gray[y_start:y_end], axis=1)
+    is_white = row_means > white_thr
+
+    idx = np.where(is_white)[0]
+    if len(idx) == 0:
+        return None
+
+    # 연속된 white-run(빈 줄 덩어리) 중 가장 긴 구간의 가운데를 고름
+    runs = []
+    s = idx[0]
+    prev = idx[0]
+    for v in idx[1:]:
+        if v == prev + 1:
+            prev = v
+        else:
+            runs.append((s, prev))
+            s = v
+            prev = v
+    runs.append((s, prev))
+
+    # 가장 긴 run 선택
+    best = max(runs, key=lambda t: t[1] - t[0])
+    mid = (best[0] + best[1]) // 2
+    return y_start + mid
 
 # =========================
 # Crop PNG -> output/assets/solutions/...
 # =========================
-# def split_solution_png_by_anchors(
-#     png_path: str,
-#     meta: dict,
-#     anchors,
-#     min_height=260,      # 문항 최소 높이
-#     bottom_margin=40     # 다음 문항과의 완충
-# ):
-#     img = Image.open(png_path)
-#     w, h = img.size
-
-#     rel_folder = f"assets/solutions/g{meta['grade']}/{meta['year']}_{meta['month']}"
-#     target_dir = OUT_ROOT / rel_folder
-#     target_dir.mkdir(parents=True, exist_ok=True)
-
-#     sol_assets = {}
-
-#     for i, curr in enumerate(anchors):
-#         qnum = curr["qnum"]
-#         y0 = curr["y"]
-
-#         if i == len(anchors) - 1:
-#             y1 = h
-#         else:
-#             next_y = anchors[i + 1]["y"]
-#             # ✅ 핵심 보호 로직
-#             y1 = max(next_y - bottom_margin, y0 + min_height)
-#             y1 = min(y1, h)
-
-#         if y1 - y0 < 80:  # 너무 얇으면 스킵
-#             continue
-
-#         crop = img.crop((0, y0, w, y1))
-#         crop = trim_to_content(crop, pad=20) 
-
-#         fname = f"q{qnum:02d}.png"
-#         crop.save(target_dir / fname)
-#         sol_assets[qnum] = [f"{rel_folder}/{fname}"]
-
-#     return sol_assets
-
-def split_solution_png_by_anchors(png_path: str, meta: dict, anchors: list): # 제미나이
-    img = Image.open(png_path)
+def split_solution_png_by_anchors(
+    png_path: str,
+    meta: dict,
+    anchors,
+    min_height=240,
+    pad_top=20,
+    overlap_bottom=40,
+    bottom_margin=0,
+    trim_pad=10,
+    black_thresh=20,
+):
+    img = Image.open(png_path).convert("RGB")
+    arr_gray = np.array(img.convert("L"))  # ✅ whitespace 탐색용
     w, h = img.size
-    sol_assets = {}
-    
-    # 저장 경로 설정 (사용자님 기존 구조 유지)
+
     rel_folder = f"assets/solutions/g{meta['grade']}/{meta['year']}_{meta['month']}"
     target_dir = OUT_ROOT / rel_folder
     target_dir.mkdir(parents=True, exist_ok=True)
 
+    sol_assets = {}
+
     for i, curr in enumerate(anchors):
-        qnum = curr['qnum']
-        # [수정] y0: 문항 번호보다 60px 위에서 시작 (번호 안 잘리게)
-        y0 = max(0, curr['y'] - 60) 
-        
-        # [수정] y1: 다음 문항 번호보다 70px 위에서 끝냄 (이전 문항 해설 보존)
-        if i + 1 < len(anchors):
-            y1 = anchors[i+1]['y'] - 70
-        else:
+        qnum = curr["qnum"]
+        y0 = max(0, curr["y"] - pad_top)
+
+        if i == len(anchors) - 1:
             y1 = h
-            
-        # 역전 현상 방지
-        if y1 <= y0: y1 = y0 + 500
-            
-        crop = img.crop((0, y0, w, y1))
-        
-        # 여백 제거 (trim_to_content가 있다면 활용 가능)
-        # crop = trim_to_content(crop) 
+        else:
+            next_y = anchors[i + 1]["y"]
+
+            # (A) 기본: 겹침 허용
+            y1_base = min(h, next_y + overlap_bottom)
+
+            # (B) 공백 띠(whitespace)로 y1 스냅 시도
+            #     - 너무 위에서 찾으면 본문 중간에서 끊길 수 있으니
+            #       최소 min_height 이후부터 탐색
+            search_start = min(h, y0 + min_height)
+            search_end   = min(h, y1_base)
+
+            cut_y = None
+            if search_end - search_start >= 40:  # 탐색 폭이 너무 좁으면 패스
+                cut_y = pick_cut_y_by_whitespace(arr_gray, search_start, search_end)
+
+            y1 = cut_y if cut_y is not None else y1_base
+
+            # (C) 최소높이 방어
+            y1 = min(h, max(y1, y0 + min_height))
+
+        if y1 - y0 < 80:
+            continue
+
+        crop_pil = img.crop((0, y0, w, y1))
+
+        # trim_black_margins / pil_to_bgr / bgr_to_pil 은 기존 그대로 사용
+        crop_bgr = pil_to_bgr(crop_pil)
+        crop_bgr = trim_black_margins(
+            crop_bgr,
+            black_thresh=black_thresh,
+            margin=2,
+            pad=0
+        )
+        crop_pil = bgr_to_pil(crop_bgr)
+
+        # ✅ 최종 패딩(테두리 추가)
+        if trim_pad > 0:
+            crop_pil = ImageOps.expand(
+                crop_pil,
+                border=(trim_pad, trim_pad, trim_pad, trim_pad),
+                fill="white"
+            )
 
         fname = f"q{qnum:02d}.png"
-        crop.save(target_dir / fname)
+        crop_pil.save(target_dir / fname)
         sol_assets[qnum] = [f"{rel_folder}/{fname}"]
-        
-    return sol_assets
 
+    return sol_assets
 
 # =========================
 # Batch main (question_parser처럼 그냥 실행)

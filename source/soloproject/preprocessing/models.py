@@ -7,10 +7,19 @@ class MockExamQuestion(models.Model):
     year = models.IntegerField()
     month = models.IntegerField()
     subject = models.CharField(max_length=50, null=True, blank=True) # 선택과목
+    track = models.CharField(max_length=20, default="common")  # common/calculus/geometry/probability 등
+    question_number = models.IntegerField(null=True, blank=True)  # 1~30
 
     # 텍스트 데이터 (수선 전/후)
     raw_text = models.TextField() # JSONL의 깨진 텍스트
     cleaned_latex = models.TextField(null=True, blank=True) # Nougat 수선 결과
+
+    # 객관식 보기(없으면 [])
+    choices = models.JSONField(default=list, blank=True)
+
+    # 해설(텍스트/OCR + 이미지)
+    solution_text = models.TextField(null=True, blank=True)
+    solution_assets = models.JSONField(default=list, blank=True)  # ["assets/solutions/.../q01.png"]
     
     # 추가 메타데이터
     score = models.IntegerField(default=0)

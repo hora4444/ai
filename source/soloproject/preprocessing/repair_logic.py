@@ -5,6 +5,7 @@ import time
 from transformers import NougatProcessor, VisionEncoderDecoderModel
 from PIL import Image
 import torch
+from django.db.models import Q
 
 # ==========================================
 # 1. Django 환경 초기화
@@ -15,17 +16,48 @@ django.setup()
 
 from preprocessing.models import MockExamQuestion
 
+def pick_torch_device(prefer_gpu: bool = True):
+    """
+    우선순위:
+    1) CUDA (NVIDIA)
+    2) DirectML (AMD/Intel on Windows) - torch-directml 설치 시
+    3) CPU
+    """
+    if prefer_gpu and torch.cuda.is_available():
+        return "cuda", None
+
+    # (선택) Windows에서 AMD GPU 쓰려면 torch-directml
+    if prefer_gpu:
+        try:
+            import torch_directml
+            dml = torch_directml.device()
+            return "dml", dml
+        except Exception:
+            pass
+
+    return "cpu", None
+
 # ==========================================
 # 2. 수선 로직 클래스
 # ==========================================
 class QuestionRepairer:
     def __init__(self):
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.device_kind, self.dml_device = pick_torch_device(prefer_gpu=True)
         self.model_name = "facebook/nougat-small"
-        print(f"[{self.device}] 모델 로딩 중: {self.model_name}...")
+        print(f"[{self.device_kind}] 모델 로딩 중: {self.model_name}...")
         
         self.processor = NougatProcessor.from_pretrained(self.model_name)
-        self.model = VisionEncoderDecoderModel.from_pretrained(self.model_name).to(self.device)
+        self.model = VisionEncoderDecoderModel.from_pretrained(self.model_name).to(self.device_kind)
+
+        if self.device_kind == "cuda":
+            self.model = self.model.to("cuda")
+        elif self.device_kind == "dml":
+            self.model = self.model.to(self.dml_device)  # ✅ 핵심
+        else:
+            self.model = self.model.to("cpu")
+
+        self.model.eval()
+
         print("✅ 모델 로딩 완료!")
 
     def repair_single_question(self, question_obj):
@@ -59,7 +91,13 @@ class QuestionRepairer:
                 final_img = valid_images[0]
 
             # 3. AI 추론
-            pixel_values = self.processor(final_img, return_tensors="pt").pixel_values.to(self.device)
+            pixel_values = self.processor(final_img, return_tensors="pt").pixel_values
+            if self.device_kind == "cuda":
+                pixel_values = pixel_values.to("cuda")
+            elif self.device_kind == "dml":
+                pixel_values = pixel_values.to(self.dml_device)
+            else:
+                pixel_values = pixel_values.to("cpu")
             outputs = self.model.generate(
                 pixel_values,
                 min_length=1,
@@ -79,7 +117,7 @@ class QuestionRepairer:
 # ==========================================
 def run_auto_repair():
     repairer = QuestionRepairer()
-    targets = MockExamQuestion.objects.filter(cleaned_latex__isnull=True)
+    targets = MockExamQuestion.objects.filter(Q(cleaned_latex__isnull=True) | Q(cleaned_latex=""))
     total_count = targets.count()
     
     if total_count == 0:

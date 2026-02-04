@@ -146,7 +146,7 @@ def build_items(pdf_path, filename, grade, kind):
         raw_assets = drop_header_tiles(raw_assets)
         
         item = {
-            "id": f"g{grade}_{meta['year']}_{meta['month']}_{meta['track']}_q{qnum}",
+            "id": f"g{grade}_{meta['year']}_{meta['month']}_{meta['track']}_q{qnum:02d}",
             **meta,
             "kind": kind,
             "question_number": qnum,

@@ -4,7 +4,7 @@ import re
 import json
 from pathlib import Path
 from collections import defaultdict
-from solution_assets_splitter import render_solution_images
+from 복구용폴더.solution_assets_splitter import render_solution_images
 
 def parse_exam_filename(filename: str, grade):
     # 시작시 초기화
