@@ -567,7 +567,7 @@ for pdf_path in pdf_paths:
         continue
 
     items = build_items(str(pdf_path), filename, grade, kind)
-    out_path = Path("output") / "jsonl" / "question" / f"g{grade}" / f"{meta['year']}_{meta['month']}_{meta['track']}_{kind}.jsonl"
+    out_path = Path("output") / "jsonl" / "questions" / f"g{grade}" / f"{meta['year']}_{meta['month']}_{meta['track']}_{kind}.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_jsonl(items, out_path)
 

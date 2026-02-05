@@ -80,6 +80,44 @@ def inspect_chroma(persist_dir: str, collection_name: str | None = None, sample_
         doc = doc[:160] + ("..." if len(doc) > 160 else "")
         print(f"  #{i+1} dist={dist:.4f}  doc='{doc}'")
 
+
+def inspect_combined_data(persist_dir: str, collection_name: str, n_samples: int = 5):
+    import chromadb
+    import numpy as np
+
+    client = chromadb.PersistentClient(path=persist_dir)
+    col = client.get_collection(collection_name)
+    
+    # 데이터 가져오기 (문서, 메타데이터, 임베딩 포함)
+    results = col.get(
+        limit=n_samples,
+        include=["documents", "embeddings", "metadatas"]
+    )
+
+    docs = results.get("documents", [])
+    embs = results.get("embeddings", [])
+    metas = results.get("metadatas", [])
+
+    print(f"\n=== [Collection: {collection_name}] 상위 {len(docs)}개 샘플 확인 ===")
+
+    for i in range(len(docs)):
+        print(f"\n--- 데이터 #{i+1} ---")
+        # 1. 메타데이터 출력 (파일명, 페이지 등)
+        print(f"[Metadata]: {metas[i]}")
+        
+        # 2. 청킹된 텍스트 출력 (앞부분 100자만)
+        text_snippet = docs[i].replace("\n", " ")[:100]
+        print(f"[Document]: {text_snippet}...")
+        
+        # 3. 임베딩 값 출력 (앞부분 20개 요소만)
+        if embs is not None and len(embs) > i and embs[i] is not None:
+            emb_sample = np.array(embs[i])
+            print(f"[Embedding (Shape: {emb_sample.shape})]:")
+            # 배열의 앞 20개 요소만 출력
+            print(f"  {emb_sample[:20].tolist()} ...")
+        else:
+            print("[Embedding]: 임베딩 값이 저장되어 있지 않습니다.")
+
 def normalize_filename(s: str) -> str:
     s = (s or "").strip()
     return os.path.splitext(s)[0]  # 확장자 제거
@@ -242,8 +280,14 @@ if __name__ == "__main__":
     # 예) persist 디렉토리가 ./persist 라면
     persist_dir="./chroma_db"
     
-    ## 청킹/임베딩 상태 확인이 필요할 경우
-    #inspect_chroma(persist_dir=persist_dir, collection_name=None, sample_n=50) # 데이터 청킹, 임베딩 확인
+    # # 청킹/임베딩 상태 확인이 필요할 경우
+    # inspect_chroma(persist_dir=persist_dir, collection_name=None, sample_n=50) # 데이터 청킹, 임베딩 확인
+
+    inspect_combined_data(
+        persist_dir="./chroma_db", 
+        collection_name="airline_terms", 
+        n_samples=3  # 보고 싶은 데이터 개수
+    )
 
     client = chromadb.PersistentClient(path="./chroma_db")
     col = client.get_collection("airline_terms")
