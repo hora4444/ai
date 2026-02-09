@@ -3,13 +3,14 @@ import os
 import json
 import numpy as np
 from pathlib import Path
+import ollama
 import cv2
+import io
 from PIL import Image, ImageOps
 Image.MAX_IMAGE_PIXELS = None
 
 # ---- Optional: OCR deps ----
 try:
-    import cv2
     import pytesseract
     from pytesseract import Output
     OCR_AVAILABLE = True
@@ -23,12 +24,56 @@ try:
 except Exception:
     PDF_AVAILABLE = False
 
-
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+client = ollama.Client(timeout=None)
 # =========================
 # HARD-CODED PATHS (question_parser 스타일)
 # =========================
 ROOT = Path("data")          # 입력 루트
 OUT_ROOT = Path("output")    # 출력 루트 (하드코딩)
+MODEL_NAME = 'qwen3-vl:4b'
+
+def get_smart_split_points(image_path, max_chunk_height=1800):
+    """
+    OpenCV와 Tesseract를 활용해 수식이 잘리지 않는 최적의 절단 지점을 계산합니다.
+    """
+    img = cv2.imread(str(image_path))
+    if img is None: return []
+    
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    h, w = gray.shape
+
+    # 1. 문제 번호 위치 탐색 (앵커 포인트)
+    d = pytesseract.image_to_data(gray, output_type=Output.DICT)
+    split_candidates = []
+    for i in range(len(d['text'])):
+        text = d['text'][i].strip()
+        if re.match(r'^\d+\.?$', text): # 숫자로 된 문제 번호 찾기
+            split_candidates.append(d['top'][i])
+
+    # 2. 번호 사이가 너무 길거나 수식이 있을 경우를 대비한 '여백' 기반 절단
+    final_splits = [0]
+    last_split = 0
+    
+    # 임계치(max_chunk_height)마다 자를 지점을 검토
+    check_points = split_candidates if split_candidates else list(range(max_chunk_height, h, max_chunk_height))
+    for target_y in check_points:
+        if target_y - last_split < 500: continue # 너무 짧게 자르는 것 방지
+        
+        # 여백 탐색 (번호 위쪽 또는 해당 지점 주변 100px)
+        search_start = max(0, target_y - 100)
+        search_range = gray[search_start:min(h, target_y + 20), :]
+        row_sums = np.sum(search_range, axis=1)
+        
+        # 가장 하얀 줄(픽셀 합 최대) 찾기
+        best_gap_relative = np.argmax(row_sums)
+        best_gap_absolute = search_start + best_gap_relative
+        
+        final_splits.append(best_gap_absolute)
+        last_split = best_gap_absolute
+            
+    final_splits.append(h)
+    return sorted(list(set(final_splits)))
 
 def is_solution_header_like(pil_crop: Image.Image) -> bool:
     """
@@ -67,7 +112,8 @@ def is_solution_header_like(pil_crop: Image.Image) -> bool:
 
 # (선택) tesseract 설치 경로를 코드에 고정하고 싶으면 여기만 수정
 # PATH 환경변수로 tesseract가 잡혀 있으면 None으로 두면 됨.
-TESS_ROOT = r"C:\Users\Admin\Tesseract-OCR"  # 예: r"C:\Program Files\Tesseract-OCR"
+# TESS_ROOT = r"C:\Users\Admin\Tesseract-OCR"  # 예: r"C:\Program Files\Tesseract-OCR"
+TESS_ROOT = r"C:\Program Files\Tesseract-OCR"
 # TESS_ROOT = None
 
 
@@ -206,100 +252,6 @@ def get_anchors_from_solution_png(png_path: str):
 
     return [{"qnum": k, "y": anchors[k]} for k in sorted(anchors.keys())]
 
-# def split_solution_png_by_anchors(png_path: str, meta: dict, anchors: list):
-#     img = Image.open(png_path)
-#     w, h = img.size
-#     sol_assets = {}
-    
-#     # 저장 경로
-#     rel_folder = f"assets/solutions/g{meta['grade']}/{meta['year']}_{meta['month']}"
-#     target_dir = OUT_ROOT / rel_folder
-#     target_dir.mkdir(parents=True, exist_ok=True)
-
-#     # [수정] 1번의 시작점 설정 (이미지 최상단 혹은 정답표 아래 - 여기서는 상단 5% 지점 가정)
-#     # 보통 정답표가 위에 있으므로 1번 출제의도 이전까지는 정답표 영역일 수 있습니다.
-    
-#     for i in range(len(anchors)):
-#         qnum = anchors[i]['qnum']
-        
-#         # 시작점(y0): 현재 문항의 [출제의도] 위쪽
-#         y0 = max(0, anchors[i]['y'] - 50) 
-        
-#         # 끝점(y1): 다음 문항의 [출제의도] 바로 위까지
-#         if i + 1 < len(anchors):
-#             y1 = anchors[i+1]['y'] - 55
-#         else:
-#             y1 = h # 마지막 문항은 끝까지
-            
-#         crop = img.crop((0, y0, w, y1))
-#         # 내용물에 맞춰 흰 여백 제거
-#         crop = trim_to_content(crop) 
-
-#         fname = f"q{qnum:02d}.png"
-#         crop.save(target_dir / fname)
-#         sol_assets[qnum] = [f"{rel_folder}/{fname}"]
-        
-#     return sol_assets
-
-# 2. 실제 자르기 함수 (1번 문항에 정답표 포함)
-def split_solution_png_by_anchors(png_path: str, meta: dict, anchors: list):
-    img = Image.open(png_path)
-    gray = img.convert('L')
-    arr = np.array(gray)
-    w, h = img.size
-    
-    # 흰색 판정 (조금 더 엄격하게 245)
-    row_means = np.mean(arr, axis=1)
-    is_white = row_means > 245 
-
-    target_dir = OUT_ROOT / f"assets/solutions/g{meta['grade']}/{meta['year']}_{meta['month']}"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    sol_assets = {}
-
-    # 각 문항의 실제 '물리적' 경계선을 저장할 리스트
-    boundaries = [0] # 1번의 시작은 0
-
-    for i in range(len(anchors) - 1):
-        # 현재 번호와 다음 번호 사이의 '최적 절단면' 찾기
-        curr_y = anchors[i]['y']
-        next_y = anchors[i+1]['y']
-        
-        search_start = curr_y + 100
-        search_end = next_y - 20
-        
-        white_indices = np.where(is_white[search_start:search_end])[0]
-        
-        if len(white_indices) > 0:
-            # [핵심] 하얀 공간의 '마지막'이 아니라 '중앙'을 자릅니다.
-            # 이렇게 하면 앞 문제의 마지막 줄과 뒷 문제의 번호 사이에 완충 지대가 생깁니다.
-            mid_white = white_indices[len(white_indices) // 2]
-            boundaries.append(search_start + mid_white)
-        else:
-            # 하얀 공간을 못 찾으면 번호 사이의 70% 지점을 자름 (안전장치)
-            boundaries.append(int(curr_y + (next_y - curr_y) * 0.7))
-            
-    boundaries.append(h) # 마지막은 이미지 끝
-
-    # 결정된 경계선대로 크롭
-    for i in range(len(anchors)):
-        y0 = boundaries[i]
-        y1 = boundaries[i+1]
-        
-        # 1번 문항일 때만 특별히 y0를 0으로 고정 (정답표 포함)
-        if i == 0: y0 = 0
-
-        crop = img.crop((0, y0, w, y1))
-        
-        # trim_to_content를 하되 pad를 40으로 넉넉히 주어 
-        # 글자 외곽이 잘리는 현상을 방지합니다.
-        crop = trim_to_content(crop, pad=40)
-
-        qnum = anchors[i]['qnum']
-        fname = f"q{qnum:02d}.png"
-        crop.save(target_dir / fname)
-        sol_assets[qnum] = [f"assets/solutions/g{meta['grade']}/{meta['year']}_{meta['month']}/{fname}"]
-
-    return sol_assets
 # =========================
 # Anchor normalization/fill
 # =========================
@@ -343,18 +295,6 @@ def normalize_and_fill_anchors(anchors, img_h: int):
         if final[i]["y"] <= final[i - 1]["y"]:
             final[i]["y"] = min(img_h - 1, final[i - 1]["y"] + 10)
     return final
-
-# def pil_to_bgr(pil_img: Image.Image) -> np.ndarray:
-#     """PIL(RGB or L) -> OpenCV BGR ndarray"""
-#     if pil_img.mode != "RGB":
-#         pil_img = pil_img.convert("RGB")
-#     arr = np.array(pil_img)              # RGB
-#     return cv2.cvtColor(arr, cv2.COLOR_RGB2BGR)
-
-# def bgr_to_pil(img_bgr: np.ndarray) -> Image.Image:
-#     """OpenCV BGR -> PIL RGB"""
-#     rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
-#     return Image.fromarray(rgb)
 
 def pil_to_bgr(pil_img: Image.Image) -> np.ndarray:
     rgb = np.array(pil_img.convert("RGB"))
@@ -464,34 +404,66 @@ def split_solution_png_by_anchors(
     return sol_assets
 
 
-def ocr_solution_text(png_file: Path) -> str | None:
-    if not OCR_AVAILABLE:
-        return None
-
-    # PIL -> OpenCV 전처리
-    pil = Image.open(png_file).convert("L")
-
-    import numpy as np
-    arr = np.array(pil)
-
-    # (선택) 글자 선명하게: 이진화 + 확대
-    import cv2
-    arr = cv2.resize(arr, None, fx=1.6, fy=1.6, interpolation=cv2.INTER_CUBIC)
-    _, bin_img = cv2.threshold(arr, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-    # Tesseract 옵션 (상황 따라 튜닝)
-    config = "--psm 6"
+def ask_ollama_vision(img_input):
+    """기존 Tesseract 대신 Ollama qwen3-vl:4b 사용"""
     try:
-        txt = pytesseract.image_to_string(bin_img, lang="kor+eng", config=config)
-    except Exception:
-        # kor 데이터 없거나 하면 fallback
-        txt = pytesseract.image_to_string(bin_img, config=config)
+        if isinstance(img_input, Image.Image):
+            # PIL 이미지를 바이트로 변환
+            img_byte_arr = io.BytesIO()
+            img_input.save(img_byte_arr, format='PNG')
+            img_final = img_byte_arr.getvalue()
+        else:
+            # 경로일 경우 파일 읽기
+            with open(img_input, 'rb') as f:
+                img_final = f.read()
 
-    # 너무 지저분한 공백 정리(가벼운 수준)
-    txt = "\n".join(line.rstrip() for line in txt.splitlines()).strip()
-    return txt or None
+        res = client.chat(
+            model=MODEL_NAME,
+            messages=[{
+                'role': 'user', 
+                'content': '이 수학 해설 이미지 조각의 내용을 LaTeX로 추출해줘. 인사말이나 "여기 있습니다" 같은 문구 없이 본문만 출력해.',
+                'images': [img_final]
+            }]
+        )
+        return res['message']['content']
+    except Exception as e:
+        print(f"      [!] LLM 호출 오류: {e}")
+        return None
+    
+def process_solution_with_splitting(abs_png):
+    """
+    이미지가 길면 쪼개서 처리하고, 짧으면 그냥 처리하는 통합 함수
+    """
+    # 1. 이미지 크기 확인
+    with Image.open(abs_png) as tmp_img:
+        width, height = tmp_img.size
+    
+    # 세로가 2000px 이하로 짧으면 그냥 한 번에 처리
+    if height < 2000:
+        return ask_ollama_vision(abs_png)
 
-
+    # 2. 길 경우 스마트 절단 수행
+    print(f"    [>] 이미지가 길어({height}px) 지능적 분할을 시작합니다...")
+    splits = get_smart_split_points(abs_png)
+    full_img = Image.open(abs_png)
+    
+    parts_results = []
+    for i in range(len(splits)-1):
+        top = splits[i]
+        bottom = splits[i+1]
+        
+        # 약간의 오버랩(5px)을 주어 문맥 유지
+        crop_img = full_img.crop((0, max(0, top-5), full_img.width, min(full_img.height, bottom+5)))
+        
+        # 디버깅용 (필요시 주석 해제하여 절단면 확인 가능)
+        # crop_img.save(f"output/debug_q_{i}.png")
+        
+        print(f"      - 조각 {i+1}/{len(splits)-1} 처리 중...")
+        part_text = ask_ollama_vision(crop_img)
+        if part_text:
+            parts_results.append(part_text)
+            
+    return "\n\n".join(parts_results)
 
 # =========================
 # Batch main (question_parser처럼 그냥 실행)
@@ -557,8 +529,9 @@ def main():
                 qid = f"g{grade}_{meta['year']}_{meta['month']}_{meta['track']}_q{qnum:02d}"
                 rel = sol_assets[qnum][0]
                 abs_png = OUT_ROOT / rel  # output/assets/... 로 합쳐짐
-
-                sol_text = ocr_solution_text(abs_png)
+                # sol_text = ocr_solution_text(abs_png) # 기존 OCR 대신
+                print(f"\n[작업 시작] {qid}")
+                sol_text = process_solution_with_splitting(abs_png)    # Ollama 호출
                 rows.append({
                     "id": qid,
                     "grade": grade,

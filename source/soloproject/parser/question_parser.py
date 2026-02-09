@@ -2,6 +2,7 @@ import os
 import fitz
 import re
 import json
+import ollama
 from pathlib import Path
 from collections import defaultdict
 
@@ -107,7 +108,7 @@ def build_items(pdf_path, filename, grade, kind):
     is_solution = (kind == "solution")
     safe_name = filename.replace(".pdf", "")
     assets_dir = Path("output")/ "assets" / "questions" / f"g{grade}"/ safe_name
-    assets_by_q = render_exam_images(pdf_path, assets_dir, dpi=200, kind=kind)
+    assets_by_q = render_exam_images(pdf_path, assets_dir, dpi=150, kind=kind)
     for fp in assets_dir.rglob("*_p*_2.png"):
         try:
             fp.unlink()
@@ -464,52 +465,39 @@ def build_solution_segments_flow(doc, anchors, pad=12, content_top=140, content_
     return segs
 
 def render_exam_images(pdf_path: str, out_dir: Path, *, dpi: int = 200, kind: str = "question"):
-    """
-    kind: "question" | "solution"
-    returns dict[int, list[dict]]  # qnum -> list of asset dicts
-    """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-
     doc = fitz.open(pdf_path)
 
-    # (1) kind별 정책 결정 ✅ 여기서 pad/content_top/... 정의
+    # 정책 결정
     if kind == "solution":
         anchors = find_solution_anchors(doc)
         column_mode = "auto"
-        pad = 10
-        content_top = 120
-        content_bottom_margin = 120
+        pad, content_top, content_bottom_margin = 10, 120, 120
         asset_type = "solution_image"
     else:
         anchors = find_question_anchors(doc)
         column_mode = "fixed"
-        pad = 6
-        content_top = 90
-        content_bottom_margin = 90
+        pad, content_top, content_bottom_margin = 6, 90, 90
         asset_type = "question_image"
 
     if not anchors:
         doc.close()
         return {}
 
-    # (2) segs 생성 (중복 호출 제거) ✅
-    segs = build_question_segments(
-        doc,
-        anchors,
-        column_mode=column_mode,
-        pad=pad,
-        content_top=content_top,
-        content_bottom_margin=content_bottom_margin,
-    )
-
+    segs = build_question_segments(doc, anchors, column_mode, pad, content_top, content_bottom_margin)
     assets_by_q = {}
+
+    client = ollama.Client(timeout=None)
 
     for qnum, rects in segs.items():
         assets = []
+        # idx가 1인 첫 번째 조각만 처리하도록 제한
         for idx, (pno, rect) in enumerate(rects, start=1):
-            page = doc[pno]
+            if idx > 1: 
+                continue  # *_p*_2.png 이상의 파일 생성을 원천 차단
 
+            page = doc[pno]
             rect = rect & page.rect
             if not _is_valid_rect(rect):
                 continue
@@ -521,10 +509,33 @@ def render_exam_images(pdf_path: str, out_dir: Path, *, dpi: int = 200, kind: st
             img_path = out_dir / f"{asset_type}_q{qnum:02d}_p{pno+1}_{idx}.png"
             pix.save(str(img_path))
 
+            # Ollama 비전 모델 로직
+            question_text_llm = ""
+            try:
+                img_path_str = str(img_path.resolve())
+                
+                response = client.chat(
+                    model='qwen3-vl:4b',
+                    messages=[{
+                        'role': 'user',
+                        'content': "이 이미지의 수학 문제를 LaTeX를 사용해 텍스트로 변환해줘. 다른 설명은 생략하고 문제 내용만 출력해.",
+                        'images': [str(img_path)]
+                    }],
+                options={'num_predict': 4096, 'temperature': 0} # 결과의 일관성을 위해 temp 0 설정
+                )
+                content = response.get('message', {}).get('content', "")
+                if not content.strip():
+                    print(f"  [Warning] Q{qnum} 응답이 비어있습니다. (DPI 확인 필요)")
+                question_text_llm = response.get('message', {}).get('content', "").strip()
+            except Exception as e:
+                print(f"  [Error] LLM 처리 실패 (Q{qnum}): {e}")
+                question_text_llm = "변환 실패"
+
             assets.append({
                 "type": asset_type,
                 "path": str(img_path).replace("\\", "/"),
-                "page": pno + 1
+                "page": pno + 1,
+                "text_llm": question_text_llm
             })
 
         assets_by_q[qnum] = assets
