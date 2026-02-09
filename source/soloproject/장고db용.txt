@@ -21,3 +21,5 @@ def run():
             for asset in data.get('assets', []):
                 img_path = asset['path']
                 # 이 경로를 Django의 Media 경로로 치환하여 저장
+
+ 
