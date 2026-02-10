@@ -128,6 +128,9 @@ def extract_questions_from_pdf(pdf_path, meta, grade):
                 "text_llm": content
             })
 
+            print("GPU 휴식을 위해 잠시 멈춥니다.")
+            time.sleep(1.5)
+
     doc.close()
     return assets_by_q
 

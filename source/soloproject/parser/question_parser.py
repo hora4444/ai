@@ -5,6 +5,7 @@ import json
 import ollama
 from pathlib import Path
 from collections import defaultdict
+import time
 
 def parse_exam_filename(filename: str, grade):
     # 시작시 초기화
@@ -537,6 +538,8 @@ def render_exam_images(pdf_path: str, out_dir: Path, *, dpi: int = 200, kind: st
                 "page": pno + 1,
                 "text_llm": question_text_llm
             })
+            print("GPU 휴식을 위해 잠시 멈춥니다.")
+            time.sleep(1.5)
 
         assets_by_q[qnum] = assets
 
@@ -581,6 +584,8 @@ for pdf_path in pdf_paths:
     out_path = Path("output") / "jsonl" / "questions" / f"g{grade}" / f"{meta['year']}_{meta['month']}_{meta['track']}_{kind}.jsonl"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     save_jsonl(items, out_path)
+    print("GPU 온도를 낮추기 위해 10초간 긴 휴식을 가집니다...")
+    time.sleep(10)
 
     print("WRITE TO:", os.path.abspath(out_path))
 

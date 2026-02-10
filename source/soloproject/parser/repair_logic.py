@@ -4,6 +4,8 @@ from pathlib import Path
 import shutil
 import re
 import time
+import io
+from PIL import Image
 
 BASE_DIR = Path(r"C:\ai\source\soloproject")
 JSONL_DIR = BASE_DIR / "output" / "jsonl" / "questions" / "g1"
@@ -94,7 +96,8 @@ def repair_all_jsonls():
                                 len(text_result) < 40 or            # 내용이 너무 짧거나
                                 "<think>" in text_result or          # <think> 태그가 남아있거나
                                 "To solve" in text_result or        # "To solve this..." 같은 영문 서술이 있거나
-                                "I understand" in text_result       # 모델의 혼잣말이 섞여 있는 경우
+                                "I understand" in text_result or      # 모델의 혼잣말이 섞여 있는 경우
+                                "the " in text_result               # "the" 같은 불필요한 영어 단어가 포함된 경우
                             )
 
                             # 3. [스마트 스킵] 내용이 존재하면서 동시에 '나쁘지 않을(Good)' 때만 스킵합니다.
@@ -103,8 +106,6 @@ def repair_all_jsonls():
                                 # print(f"  [-] 건너뜀 (이미 양호함): {data['id']}")
                                 continue
                             # 실제 이미지 경로 확인
-                            # relative_path = img_path_str.replace('output/', '', 1)
-                            # full_img_path = BASE_DIR / "output" / relative_path
                             full_img_path = BASE_DIR / asset['path']
                             if not full_img_path.exists():
                                 print(f"  [!] 파일을 찾을 수 없음: {full_img_path}")
@@ -112,25 +113,68 @@ def repair_all_jsonls():
                             
                             # LLM 호출
                             try:
-                                print(f"  [>] {data['id']} 변환 중... ({full_img_path.name})")
-                                response = client.chat(
-                                    model=MODEL_NAME,
-                                    messages=[{
-                                        'role': 'user',
-                                        'content': """이 이미지에서 수학 문제 텍스트를 추출하세요. 
-                                                    반드시 다음 규칙을 지키세요:
-                                                    1. 한국어로만 답변할 것.
-                                                    2. 인사말, 'I understand', 'Sure' 같은 영어 서술은 절대 금지.
-                                                    3. 생각 과정(<think>)을 출력하지 말고 오직 최종 LaTeX 결과만 출력할 것.
-                                                    4. 수식은 반드시 $...$로 감쌀 것.""",
-                                        'images': [str(full_img_path)]
-                                    }]
-                                )
-                                text_result = response['message']['content'].strip()
-                                cleaned_text = clean_llm_result(text_result)
-                                asset['text_llm'] = cleaned_text
-                                processed_images[img_path_str] = cleaned_text
+                                success = False
+                                current_result = ""
+                                
+                                # 원본 이미지 열기
+                                with Image.open(full_img_path) as img:
+                                    img = img.convert('RGB') # 안정성을 위해 RGB 변환
+                                    width, height = img.size
+                                    
+                                    print(f"  [>] {data['id']} 변환 중... ({full_img_path.name})")
+                                    for attempt in range(6): # 0:원본, 1~5:크롭 시도
+                                        if attempt > 0:
+                                            print(f"      [!] 재시도 {attempt}: 하단 {attempt*10}% 제거 후 다시 읽는 중...")
+                                            # 하단 제거 (높이를 줄임)
+                                            new_height = int(height * (1 - (attempt * 0.1)))
+                                            active_img = img.crop((0, 0, width, new_height))
+                                        else:
+                                            active_img = img
+
+                                        # 이미지를 바이트로 변환하여 Ollama에 전달
+                                        img_byte_arr = io.BytesIO()
+                                        active_img.save(img_byte_arr, format='PNG')
+                                        img_bytes = img_byte_arr.getvalue()
+
+
+                                        print(f"  [>] {data['id']} 변환 중... ({full_img_path.name})")
+                                        response = client.chat(
+                                            model=MODEL_NAME,
+                                            messages=[{
+                                                'role': 'user',
+                                                'content': """이 이미지에서 수학 문제 텍스트를 추출하세요. 
+                                                            반드시 다음 규칙을 지키세요:
+                                                            1. 한국어로만 답변할 것.
+                                                            2. 인사말, 'I understand', 'Sure' 같은 영어 서술은 절대 금지.
+                                                            3. 생각 과정(<think>)을 출력하지 말고 오직 최종 LaTeX 결과만 출력할 것.
+                                                            4. 수식은 반드시 $...$로 감쌀 것.""",
+                                                'images': [img_bytes]
+                                            }]
+                                        )
+                                        text_result = response['message']['content'].strip()
+                                        cleaned_text = clean_llm_result(text_result)
+
+                                        is_still_bad = (
+                                            not current_result or 
+                                            len(current_result) < 40 or 
+                                            "the" in current_result.lower() or
+                                            "To solve" in current_result or
+                                            "I understand" in current_result
+                                        )
+
+                                        if not is_still_bad:
+                                            success = True
+                                            asset['text_llm'] = cleaned_text
+                                            processed_images[img_path_str] = cleaned_text
+                                            break # 성공하면 루프 탈출
+                                        time.sleep(1)
+
                                 repaired_count += 1
+
+                                if success:
+                                    print(f"  [√] 성공: {data['id']} (시도 횟수: {attempt})")
+                                else:
+                                    print(f"  [X] 실패: {data['id']} (5회 크롭 후에도 품질 부적합)")
 
                                 print("  [wait] GPU 냉각을 위해 잠시 쉽니다...")
                                 time.sleep(1.5)

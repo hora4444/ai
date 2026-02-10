@@ -1,10 +1,10 @@
-EMBEDDING_MODEL = "intfloat/multilingual-e5-base"
+EMBEDDING_MODEL = "Qwen/Qwen3-Embedding-0.6B"
 
 import json
 from pathlib import Path
 import chromadb
 from chromadb.config import Settings
-from sentence_transformers import SentenceTransformer
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from tqdm import tqdm
 
 
@@ -24,7 +24,7 @@ def get_chroma_client(persist_dir="chroma_db"):
         )
     )
 
-COLLECTION_NAME = "math_exam_items"
+COLLECTION_NAME = "math_questions"
 
 def build_metadata(item):
     return {
@@ -32,7 +32,7 @@ def build_metadata(item):
         "year": item["year"],
         "month": item["month"],
         "track": item["track"],
-        "is_common": item["is_common"],
+        "is_common": item.get("is_common", item.get("track") == "common"),
         "kind": item.get("kind", "question"),  # question / solution
     }
 
@@ -40,14 +40,19 @@ def build_metadata(item):
 def build_text_for_embedding(item):
     parts = []
 
-    if item.get("question_text"):
+    if "assets" in item:
+            for asset in item["assets"]:
+                llm_text = asset.get("text_llm", "").strip()
+                if llm_text:
+                    parts.append(llm_text)
+    
+    if not parts and item.get("question_text"):
         parts.append(item["question_text"])
+    # 해설 파일의 경우 solution_text도 포함
+    # if item.get("solution_text"):
+    #     parts.append(item["solution_text"])
 
-    choices = item.get("choices", [])
-    if choices:
-        parts.append("선택지: " + " ".join(choices))
-
-    return "\n".join(parts).strip()
+    return " ".join(parts).strip()
 
 # ChromaDB 인제스트 코드
 def ingest_jsonl_to_chroma(jsonl_dir: Path, persist_dir="chroma_db"):
@@ -57,7 +62,7 @@ def ingest_jsonl_to_chroma(jsonl_dir: Path, persist_dir="chroma_db"):
         name=COLLECTION_NAME
     )
 
-    model = SentenceTransformer(EMBEDDING_MODEL)
+    model = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
     ids = []
     documents = []
@@ -107,5 +112,5 @@ def search_chroma(query, k=5, filters=None):
     return results
 
 if __name__ == "__main__":
-    jsonl_dir = Path("output/jsonl")
+    jsonl_dir = Path("output/jsonl/questions/g1")
     ingest_jsonl_to_chroma(jsonl_dir)

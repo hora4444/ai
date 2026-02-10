@@ -6,6 +6,7 @@ from pathlib import Path
 import ollama
 import cv2
 import io
+import time
 from PIL import Image, ImageOps
 Image.MAX_IMAGE_PIXELS = None
 
@@ -544,10 +545,14 @@ def main():
                     "solution_text_len": 0 if sol_text is None else len(sol_text),
                     "ocr_ok": bool(sol_text and len(sol_text) >= 30),
                 })
+                print("GPU 휴식을 위해 잠시 멈춥니다.")
+                time.sleep(1.5)
 
         save_jsonl(rows, s_out_path)
         print("  -> WRITE solutions jsonl:", s_out_path)
         print("  -> cropped:", len(sol_assets))
+        print("GPU 온도를 낮추기 위해 10초간 긴 휴식을 가집니다...")
+        time.sleep(10)
 
     print("[DONE] batch complete")
 

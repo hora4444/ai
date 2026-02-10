@@ -2,6 +2,7 @@ import re
 import os
 import json
 import numpy as np
+import time
 from pathlib import Path
 import ollama
 import cv2
@@ -130,6 +131,9 @@ def process_single_pdf_solution(pdf_path):
                     "solution_text_llm": sol_text
                 }
                 f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+                print("GPU 휴식을 위해 잠시 멈춥니다.")
+                time.sleep(1.5)
     doc.close()
 
 if __name__ == "__main__":
