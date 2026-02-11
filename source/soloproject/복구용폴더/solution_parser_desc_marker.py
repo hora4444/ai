@@ -261,15 +261,13 @@ def main():
     ap.add_argument("--root", type=Path, default=Path("data"))
     ap.add_argument("--out_root", type=Path, default=Path("output"))
     ap.add_argument("--grade", type=int, default=1)
-    ap.add_argument("--model", type=str, default="qwen3-vl:2b")
+    ap.add_argument("--model", type=str, default="qwen3-vl:4b")
     ap.add_argument("--slice_height", type=int, default=1200)
     ap.add_argument("--overlap", type=int, default=150)
     ap.add_argument("--sleep", type=float, default=0.8)
     ap.add_argument("--only_if_jsonl_exists", action="store_true")
     ap.add_argument("--write_suffix", type=str, default="_marker")
     ap.add_argument("--fallback_regex", action="store_true", help="마커 누락 시 regex 백업을 강제로 사용")
-    ap.add_argument("--dump_full_text", action="store_true", help="OCR 전체 텍스트를 파일로 저장")
-    ap.add_argument("--dump_dir", type=Path, default=Path("output") / "debug_fulltext", help="전체 텍스트 저장 폴더")
     args = ap.parse_args()
 
     client = ollama.Client(timeout=None)
@@ -305,17 +303,6 @@ def main():
 
         sol_map = parse_by_markers(full_text)
         marker_hit = sum(1 for q in q_nums if sol_map.get(q))
-
-        missing = [q for q in q_nums if not sol_map.get(q)]
-        found = sorted([q for q in q_nums if sol_map.get(q)])
-        if found:
-            print(f"[MARKERS] found={len(found)}/{len(q_nums)} -> {found}")
-        if missing:
-            # 길어질 수 있어서 앞/뒤만 요약 출력
-            if len(missing) <= 20:
-                print(f"[MISSING] {len(missing)} -> {missing}")
-            else:
-                print(f"[MISSING] {len(missing)} -> head={missing[:10]} ... tail={missing[-10:]}")
 
         # 마커가 많이 누락되면(60% 미만) 자동으로 백업 파싱으로 빈 칸 보충
         need_fallback = marker_hit < max(3, int(0.6 * len(q_nums)))

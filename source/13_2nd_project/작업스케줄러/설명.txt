@@ -1,0 +1,27 @@
+작업 스케줄러 실행 후
+
+오른쪽에 작업 만들기... 클릭
+
+새 창(일반)이 뜨면 이름등을 입력 후
+
+상단의 트리거 클릭 후 왼쪽 하단의 새로 만들기 클릭
+
+왼쪽 상단의 설정에 매일 라디오 단추 클릭 후 시작(S) 설정, 
+하단의 고급설정에 작업 반복 간격(P): 부분을 변경 (sync_flights_today, sync_weather 설정 시 5분 또는 10분 선택 | sync_flights_week는 고급설정 선택X)
+
+확인을 누른 후 상단의 동작 클릭 후 하단의 새로 만들기 선택
+
+중단의 설정에
+
+	프로그램/스크립트(P): # 장고의 가상환경 저장경로
+	C:\ai\letNote\2ndTeamProject\3.Django\.venv\Scripts\python.exe
+
+	인수 추가(옵션)(A): # 실행할 파이썬 파일명(주의 manage.py 뒤에 파일명만 입력[확장자X])
+	manage.py sync_flights_today
+
+	시작 위치(옵션)(T): # 장고 경로
+	C:\ai\letNote\2ndTeamProject\3.Django
+
+입력 후 확인
+
+sync_flights_today, sync_weather, sync_flights_week 각각 설정 필요
