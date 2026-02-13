@@ -115,27 +115,53 @@ def slice_image(img: Image.Image, slice_height: int, overlap: int) -> List[Image
         y = y2 - overlap
     return parts
 
-
-def ocr_full_text(
-    client: "ollama.Client",
-    model: str,
-    img_path: Path,
-    slice_height: int,
-    overlap: int,
-    sleep: float,
-    prompt: str,
-) -> str:
+def save_smart_slices(img_path: Path, output_dir: Path, slice_height: int = 4000, overlap: int = 500):
+    """이미지를 물리적으로 자르고 저장하여 모델이 읽기 편한 환경을 만듭니다."""
     img = Image.open(img_path).convert("RGB")
-    parts = slice_image(img, slice_height=slice_height, overlap=overlap)
+    w, h = img.size
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
+    y = 0
+    idx = 0
+    slice_paths = []
+    
+    while y < h:
+        y2 = min(y + slice_height, h)
+        # 패딩을 고려한 크롭
+        part = img.crop((0, y, w, y2))
+        
+        slice_name = f"{img_path.stem}_part_{idx:02d}.png"
+        save_path = output_dir / slice_name
+        part.save(save_path)
+        slice_paths.append(save_path)
+        
+        if y2 >= h: break
+        y = y2 - overlap  # 겹치는 구간 생성
+        idx += 1
+        
+    return slice_paths
 
-    out_chunks: List[str] = []
-    for part in parts:
-        text = ask_ollama_latex(client, model, part, prompt)
-        out_chunks.append(text)
-        if sleep:
-            time.sleep(sleep)
 
-    return "\n\n".join(out_chunks)
+# def ocr_full_text(
+#     client: "ollama.Client",
+#     model: str,
+#     img_path: Path,
+#     slice_height: int,
+#     overlap: int,
+#     sleep: float,
+#     prompt: str,
+# ) -> str:
+#     img = Image.open(img_path).convert("RGB")
+#     parts = slice_image(img, slice_height=slice_height, overlap=overlap)
+
+#     out_chunks: List[str] = []
+#     for part in parts:
+#         text = ask_ollama_latex(client, model, part, prompt)
+#         out_chunks.append(text)
+#         if sleep:
+#             time.sleep(sleep)
+
+#     return "\n\n".join(out_chunks)
 
 
 # --------------------------
@@ -226,7 +252,6 @@ def update_solution_jsonl(jsonl_path: Path, solution_map: Dict[int, str], out_pa
     save_jsonl(data, out_path)
     return updated
 
-
 # --------------------------
 # Prompt builder (marker enforced)
 # --------------------------
@@ -243,14 +268,63 @@ def build_marker_prompt(q_nums: List[int]) -> str:
         "아래 규칙을 반드시 지켜라.\n\n"
         "규칙:\n"
         "1) 각 문항 해설의 시작을 '단독 한 줄' 마커로 표시하라: <<<Q번호>>> (예: <<<Q29>>>).\n"
-        "2) 마커 줄 다음 줄부터 해당 문항의 해설 LaTeX 본문만 출력하라.\n"
-        "3) 마커 외에 다른 설명/코멘트/머리말/맺음말을 출력하지 마라.\n"
+        "2) 해설 본문에 그래프나 도형 등 그림이 있다면, 해당 그림의 위치를 아래 형식으로 본문 중간에 삽입하라.\n"
+        "   형식: [[COORD:ymin,xmin,ymax,xmax]] (0~1000 사이의 상대 좌표값)\n"
+        "3) 마커 외에 다른 설명/코멘트/머리말/맺음말은 생략하고 LaTeX 본문만 출력하라.\n"
         "4) 이미지에 보이는 문항 번호(예: 29., 29번, [출제의도] 등)는 본문에 포함해도 되지만,\n"
         "   '문항 구분'은 오직 마커(<<<Q...>>>)로만 하라.\n"
         "5) 표/수식/문장은 가능한 한 원문 구조를 유지하라.\n"
         f"6) {scope_line}\n"
     )
 
+def extract_images_from_text(full_text: str, source_img: Image.Image, save_dir: Path, img_prefix: str) -> str:
+    """텍스트 내 COORD 마커를 찾아 이미지를 자르고 경로 태그로 치환한다."""
+    save_dir.mkdir(parents=True, exist_ok=True)
+    w, h = source_img.size
+    
+    # [[COORD:ymin,xmin,ymax,xmax]] 패턴 매칭
+    coord_pattern = re.compile(r"\[\[COORD:(\d+),(\d+),(\d+),(\d+)\]\]")
+    
+    def replace_func(match):
+        try:
+            ymin, xmin, ymax, xmax = map(int, match.groups())
+            # 좌표 정규화 (0~1000 기준을 픽셀로 변환)
+            left = (xmin / 1000) * w
+            top = (ymin / 1000) * h
+            right = (xmax / 1000) * w
+            bottom = (ymax / 1000) * h
+            
+            # 이미지 자르기 및 저장
+            img_name = f"{img_prefix}_{int(time.time()*1000) % 10000}.png"
+            img_path = save_dir / img_name
+            cropped = source_img.crop((left, top, right, bottom))
+            cropped.save(img_path)
+            
+            return f"\n\n[IMAGE: {img_path}]\n\n"
+        except Exception:
+            return "[그림 추출 실패]"
+
+    return coord_pattern.sub(replace_func, full_text)
+
+def ocr_full_text_with_images(
+    client: ollama.Client, model: str, img_path: Path, prompt: str, image_out_dir: Path
+) -> str:
+    """전체 OCR을 수행하고 내부의 이미지 좌표를 처리한다."""
+    img = Image.open(img_path).convert("RGB")
+    # 편의상 슬라이싱 없이 전체로 보거나 큰 단위로 처리 (좌표 정확도를 위해)
+    img_bytes = io.BytesIO()
+    img.save(img_bytes, format="PNG")
+    
+    res = client.chat(
+        model=model,
+        messages=[{"role": "user", "content": prompt, "images": [img_bytes.getvalue()]}]
+    )
+    raw_text = res["message"]["content"]
+    
+    # 이미지 추출 및 텍스트 치환
+    prefix = img_path.stem
+    final_text = extract_images_from_text(raw_text, img, image_out_dir, prefix)
+    return final_text
 
 # --------------------------
 # Main
@@ -275,6 +349,7 @@ def main():
     client = ollama.Client(timeout=None)
     images = find_exam_images(args.root, args.grade)
     print(f"[FOUND] images: {len(images)} (root={args.root})")
+    args_img_dir = Path("output/images")
 
     for img_path in images:
         meta = parse_meta_from_name(img_path.name, grade=args.grade)
@@ -293,15 +368,18 @@ def main():
         print(f"\n🚀 Processing: {img_path.name}  -> meta={meta}  q_nums={len(q_nums)}")
 
         prompt = build_marker_prompt(q_nums)
-        full_text = ocr_full_text(
-            client=client,
-            model=args.model,
-            img_path=img_path,
-            slice_height=args.slice_height,
-            overlap=args.overlap,
-            sleep=args.sleep,
-            prompt=prompt,
+        full_text = ocr_full_text_with_images(
+            client, args.model, img_path, prompt, args_img_dir
         )
+        # full_text = ocr_full_text(
+        #     client=client,
+        #     model=args.model,
+        #     img_path=img_path,
+        #     slice_height=args.slice_height,
+        #     overlap=args.overlap,
+        #     sleep=args.sleep,
+        #     prompt=prompt,
+        # )
 
         sol_map = parse_by_markers(full_text)
         marker_hit = sum(1 for q in q_nums if sol_map.get(q))
