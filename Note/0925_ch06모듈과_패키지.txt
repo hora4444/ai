@@ -1,0 +1,15 @@
+ch06. 모듈과 패키지
+      1절 파이썬 모듈 사용
+	(1) import A	- A모듈 가져옴
+	(2) from A import B - A 패키지안의 B모듈 가져옴
+	    from A.B import C -A 안의 B 모듈안의 C함수 가져옴
+	(3) import A as B	- A 모듈을 B 이름으로가져옴
+	(4) from A import B as C - A 패키지 안의 B 모듈을 C이름으로 가져옴
+	    from A.B import C as D - A 안의 B 모듈안의 C 함수를 D이름으로 가져옴
+      2절 사용자 정의 모듈
+	함수나 클래스 등을 파이썬 파일에 저장해서 모듈을 재사용 가능
+	sys.path변수를 통해 저장된 경로 확인(리스트로), 
+	append, pop를 통해 경로 추가 삭제
+      3절 패키지
+	모듈이 있는 폴더에 __init__.py를 작성
+      3_1 패키지 설치 및 삭제

@@ -1,0 +1,26 @@
+ch09 파일 i/o 프로그래밍
+    1절 txt io
+	with open('파일경로(상대경로,절대경로)/파일명.txt', 'r(rt)|w(wt)|a(at))', [encoding="인코딩타입"]) as 인스턴스변수:
+		list변수 = 인스턴트변수.readlines() /문자변수 = 인스턴트변수.read() ('r(rt)')
+		인스턴트변수.write(저장할 문자열)/ 인스턴트변수.writelines(list변수)
+
+    2절 피클(plk, pickle, data) io
+	with open('파일경로(상대경로,절대경로)/파일명.plk', 'rb|wb|ab)') as f:
+		객체리스트 변수 = pickle.load(f)-in(read)
+		pickle.dump(객체리스트,f)-out(write)
+    3절 CSV io
+	with open('filepath' , 'r|w|a' , [encoding='cp949']) as f:
+		reader =csv.reader(f) - csv파일을 list 데이터로 read
+		writer = csv.writer(f) 
+		=> writer.writerows(list데이터) - list 데이터를 csv로
+		dic_reader=csv.DictReader(f)-딕셔너리 데이터로
+		dic_writer=csvDictWriter(f)
+		=> dic_writer.writerheader(); dic_writer.writerows(list)
+    4절 json io
+	with open('filepath', 'r|w|a'. '인코딩 타입') as f:
+		리스트변수=json.load(f)-딕셔너리로 읽기
+		객체리스트변수=json.load(f,objedc_hook=함수명)
+			함수명:딕셔너리를 객체로 return
+		json.dump(리스트변수,f[,ensure_ascii,indent,...])
+		json.dump(객체리스트,f,defult=함수명)
+			함수명:객체를 딕셔너리로 return
