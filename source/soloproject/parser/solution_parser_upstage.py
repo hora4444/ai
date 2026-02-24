@@ -10,7 +10,7 @@ load_dotenv()
 UPSTAGE_API_KEY = os.getenv("UPSTAGE_KEY")
 
 ROOT = Path("data")
-OUT_ROOT = Path("output")
+OUT_ROOT = Path("output/markdown")
 
 def parse_pdf_page(pdf_path, page_num):
     """

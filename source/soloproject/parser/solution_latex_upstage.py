@@ -14,7 +14,7 @@ client = OpenAI(
 
 # 입력 폴더(기존 md)와 출력 폴더 설정
 IN_ROOT = Path("output") 
-OUT_ROOT = Path("output/solution_latex")
+OUT_ROOT = Path("output/markdown/solution_latex")
 
 def fix_latex_with_solar(raw_text):
     if not raw_text.strip():
