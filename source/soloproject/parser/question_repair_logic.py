@@ -128,6 +128,7 @@ def repair_all_jsonls():
                                             # 하단 제거 (높이를 줄임)
                                             new_height = int(height * (1 - (attempt * 0.1)))
                                             active_img = img.crop((0, 0, width, new_height))
+                                            time.sleep(2)
                                         else:
                                             active_img = img
 

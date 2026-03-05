@@ -74,7 +74,7 @@ def _merge_weighted(results: dict, *, weights=(0.5, 0.5), k: int = 6) -> list[Do
 
 
 # 4. EnsembleRetriever 대체: Runnable로 병렬 호출 후 merge
-WEIGHTS = (0.5, 0.5)  # (vector, bm25)
+WEIGHTS = (0.6, 0.4)  # (vector, bm25)
 FINAL_K = 6          # 최종 반환 개수 (각각 k=3이면 보통 6이 자연스러움)
 
 ensemble_retriever = (
