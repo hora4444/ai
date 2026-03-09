@@ -2,3 +2,6 @@ data
 output
 .venv
 data분할용
+faiss_db
+복구용폴더
+.env

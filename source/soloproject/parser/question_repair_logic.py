@@ -9,8 +9,8 @@ from PIL import Image
 
 BASE_DIR = Path(r"C:\ai\source\soloproject")
 JSONL_DIR = BASE_DIR / "output" / "jsonl" / "questions" / "g1"
-# MODEL_NAME = 'qwen3-vl:2b' # 2b 모델 권장
-MODEL_NAME = 'qwen3-vl:4b' # 2회차용
+# MODEL_NAME = 'qwen3.5:4b' # 4b 모델 권장
+MODEL_NAME = 'qwen3.5:9b' # 2회차용
 
 client = ollama.Client(timeout=None)
 
@@ -137,18 +137,16 @@ def repair_all_jsonls():
                                         active_img.save(img_byte_arr, format='PNG')
                                         img_bytes = img_byte_arr.getvalue()
 
-
-                                        print(f"  [>] {data['id']} 변환 중... ({full_img_path.name})")
                                         response = client.chat(
                                             model=MODEL_NAME,
                                             messages=[{
                                                 'role': 'user',
-                                                'content': """이 이미지에서 수학 문제 텍스트를 추출하세요. 
-                                                            반드시 다음 규칙을 지키세요:
-                                                            1. 한국어로만 답변할 것.
-                                                            2. 인사말, 'I understand', 'Sure' 같은 영어 서술은 절대 금지.
-                                                            3. 생각 과정(<think>)을 출력하지 말고 오직 최종 LaTeX 결과만 출력할 것.
-                                                            4. 수식은 반드시 $...$로 감쌀 것.""",
+                                                'content': """이미지의 수학 문제를 보고 LaTeX 형식의 텍스트로 변환하세요.
+                                                [규칙]
+                                                1. 다른 설명 없이 오직 문제 내용만 출력할 것.
+                                                2. 수식은 $...$ 또는 $$...$$를 사용할 것.
+                                                3. 결과는 반드시 한국어 기반으로 작성할 것.
+                                                4. 마크다운 기호(```latex 등)는 생략하고 텍스트만 출력할 것.""",
                                                 'images': [img_bytes]
                                             }]
                                         )
@@ -156,11 +154,11 @@ def repair_all_jsonls():
                                         cleaned_text = clean_llm_result(text_result)
 
                                         is_still_bad = (
-                                            not current_result or 
-                                            len(current_result) < 40 or 
-                                            "the" in current_result.lower() or
-                                            "To solve" in current_result or
-                                            "I understand" in current_result
+                                            not cleaned_text or                      # 1. 내용이 아예 없거나
+                                            "$" not in cleaned_text or               # 2. 수학 문제인데 수식 기호($)가 하나도 없거나
+                                            len(re.findall(r'[가-힣]', cleaned_text)) < 2 or # 3. 한국어 설명이 너무 적거나 (수식만 덜렁 있는 경우 방지)
+                                            "<think>" in cleaned_text or             # 4. 생각 과정이 포함되었거나
+                                            any(word in cleaned_text for word in ["I understand", "Sure", "The image"]) # 5. 모델의 잡담 포함
                                         )
 
                                         if not is_still_bad:
@@ -176,6 +174,7 @@ def repair_all_jsonls():
                                     print(f"  [√] 성공: {data['id']} (시도 횟수: {attempt})")
                                 else:
                                     print(f"  [X] 실패: {data['id']} (5회 크롭 후에도 품질 부적합)")
+                                    print(f"  [실패 원인] 길이: {len(cleaned_text)}, 수식포함: {'$' in cleaned_text}")
 
                                 print("  [wait] GPU 냉각을 위해 잠시 쉽니다...")
                                 time.sleep(1.5)

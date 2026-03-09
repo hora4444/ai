@@ -14,6 +14,11 @@ OUT_ROOT = Path("output") / "jsonl" / "solutions" /"고1"
 OUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 def call_upstage_with_image(image_path):
+    """
+        qwen3-vl:8b로는 아쉬워서 변경
+        3/9
+        qwen3.5:9b로는 테스트 해보지 않았으나 현 시점에서 변경이 무의미하다고 판단
+    """
     url = "https://api.upstage.ai/v1/document-ai/document-parse"
     headers = {"Authorization": f"Bearer {UPSTAGE_API_KEY}"}
     try:

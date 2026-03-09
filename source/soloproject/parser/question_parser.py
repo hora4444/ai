@@ -516,7 +516,7 @@ def render_exam_images(pdf_path: str, out_dir: Path, *, dpi: int = 200, kind: st
                 img_path_str = str(img_path.resolve())
                 
                 response = client.chat(
-                    model='qwen3-vl:4b',
+                    model='qwen3.5:9b',
                     messages=[{
                         'role': 'user',
                         'content': "이 이미지의 수학 문제를 LaTeX를 사용해 텍스트로 변환해줘. 다른 설명은 생략하고 문제 내용만 출력해.",
